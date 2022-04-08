@@ -257,8 +257,6 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh, Mesh *mesh_to_process) {
 	if (rank == 0)
 		fprintf(stderr, "Horizontal left comms : %5.2lf\n", toMicroSeconds(MPI_Wtime() - timer));
 
-	//prevend comm mixing to avoid bugs
-	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (rank == 0)
 		timer = MPI_Wtime();
@@ -268,8 +266,6 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh, Mesh *mesh_to_process) {
 	if (rank == 0)
 		fprintf(stderr, "Horizontal right comms : %5.2lf\n", toMicroSeconds(MPI_Wtime() - timer));
 
-	//prevend comm mixing to avoid bugs
-	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (rank == 0)
 		timer = MPI_Wtime();
@@ -279,8 +275,6 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh, Mesh *mesh_to_process) {
 	if (rank == 0)
 		fprintf(stderr, "Vertical top comms : %5.2lf\n", toMicroSeconds(MPI_Wtime() - timer));
 
-	//prevend comm mixing to avoid bugs
-	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (rank == 0)
 		timer = MPI_Wtime();
@@ -290,8 +284,6 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh, Mesh *mesh_to_process) {
 	if (rank == 0)
 		fprintf(stderr, "Vertical bottom comms : %5.2lf\n", toMicroSeconds(MPI_Wtime() - timer));
 
-	//prevend comm mixing to avoid bugs
-	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (rank == 0)
 		timer = MPI_Wtime();
@@ -302,8 +294,6 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh, Mesh *mesh_to_process) {
 	if (rank == 0)
 		fprintf(stderr, "Top left comms : %5.2lf\n", toMicroSeconds(MPI_Wtime() - timer));
 
-	//prevend comm mixing to avoid bugs
-	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (rank == 0)
 		timer = MPI_Wtime();
@@ -315,8 +305,6 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh, Mesh *mesh_to_process) {
 	if (rank == 0)
 		fprintf(stderr, "Bottom left comms : %5.2lf\n", toMicroSeconds(MPI_Wtime() - timer));
 
-	//prevend comm mixing to avoid bugs
-	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (rank == 0)
 		timer = MPI_Wtime();
@@ -328,9 +316,6 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh, Mesh *mesh_to_process) {
 	if (rank == 0)
 		fprintf(stderr, "Top right comms : %5.2lf\n", toMicroSeconds(MPI_Wtime() - timer));
 
-	//prevend comm mixing to avoid bugs
-	MPI_Barrier(MPI_COMM_WORLD);
-
 	if (rank == 0)
 		timer = MPI_Wtime();
 	//bottom right
@@ -340,8 +325,6 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh, Mesh *mesh_to_process) {
 	if (rank == 0)
 		fprintf(stderr, "Bottom right comms : %5.2lf\n", toMicroSeconds(MPI_Wtime() - timer));
 
-	//prevend comm mixing to avoid bugs
-	MPI_Barrier(MPI_COMM_WORLD);
 
 	//wait for IO to finish, VERY important, do not remove.
 	FLUSH_INOUT();
