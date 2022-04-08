@@ -3,7 +3,7 @@
 
 /********************  DEFINITIONS  *********************/
 
-#define concat(a,b,c,d,e) a##b##c##d##e
+#define concat(a, b, c, d, e) a##b##c##d##e
 //number of space dimentions to consider
 #define DIMENSIONS 2
 #define DIRECTIONS 9
@@ -35,32 +35,35 @@
 /**
  * Structure de configuration du problème à résoudre.
 **/
-typedef struct lbm_config_s
-{
-	//discretisation
-	int iterations;
-	int width;
-	int height;
-	//obstacle
-	double obstacle_r;
-	double obstacle_x;
-	double obstacle_y;
-	//flow parameters
-	double inflow_max_velocity;
-	double reynolds;
-	//derived flow parameters
-	double kinetic_viscosity;
-	double relax_parameter;
-	//results
-	const char * output_filename;
-	int write_interval;
+typedef struct lbm_config_s {
+		//discretisation
+		int iterations;
+		int width;
+		int height;
+		//obstacle
+		double obstacle_r;
+		double obstacle_x;
+		double obstacle_y;
+		//flow parameters
+		double inflow_max_velocity;
+		double reynolds;
+		//derived flow parameters
+		double kinetic_viscosity;
+		double relax_parameter;
+		//results
+		const char *output_filename;
+		int write_interval;
 } lbm_config_t;
 
 /*****************  FUNCTIONS  *******************/
-void load_config(const char * filename);
+void load_config(const char *filename);
+
 void update_derived_parameter(void);
+
 void config_cleanup(void);
+
 void print_config(void);
+
 void setup_default_values(void);
 
 /****************  EXTERNAL VARS ****************/

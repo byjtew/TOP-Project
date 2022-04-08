@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="main_mpi_gdb" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-np 1 xterm -e gdb ./main" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" WORKING_DIR="file://$CMakeCurrentBuildDir$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="top-project" TARGET_NAME="main" CONFIG_NAME="Debug-MPI" RUN_PATH="/usr/local/mpich-3.4.1/bin/mpirun">
+    <method v="2">
+      <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+    </method>
+  </configuration>
+</component>

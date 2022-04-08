@@ -15,7 +15,7 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 ## C flags
-set(CMAKE_C_FLAGS "-Wall -Wextra -pedantic -std=c99 -lm")
+set(CMAKE_C_FLAGS "-Wall -Wextra -pedantic -std=c99 -lm -g -O0")
 
 ## MPI support
 message(STATUS "Looking for mpicc...")
