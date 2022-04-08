@@ -1,3 +1,5 @@
-message(STATUS "INC_DIR: ${INC_DIR}")
-
-add_library(lbm STATIC lbm_comm.c lbm_config.c lbm_init.c lbm_phys.c lbm_struct.c)
+FILE(GLOB sources ${SRC_DIR}/*.c)
+FILE(GLOB headers ${INC_DIR}/*.h)
+add_library(lbm STATIC ${sources} ${headers})
+set_target_properties(lbm PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+target_include_directories(lbm PUBLIC "${INC_DIR}")

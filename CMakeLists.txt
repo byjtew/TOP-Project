@@ -41,15 +41,12 @@ endif ()
 
 # Libraries
 message(STATUS "Looking for libraries...")
-include_directories(include)
 set(INC_DIR ${CMAKE_SOURCE_DIR}/include)
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
-FILE(GLOB sources ${SRC_DIR}/*.c)
-FILE(GLOB headers ${INC_DIR}/*.h)
-add_library(lbm STATIC ${sources})
-target_link_libraries(lbm ${headers})
+add_subdirectory(src)
 
 # Executables
+set(CONFIG_FILE ${CMAKE_SOURCE_DIR}/config.txt)
 add_subdirectory(bin)
 
 # Testing
