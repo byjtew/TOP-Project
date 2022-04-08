@@ -21,7 +21,7 @@ typedef double Vector[DIMENSIONS];
  * contenant les mailles fantômes.
 **/
 typedef struct Mesh {
-		/** Cellules du maillages (MESH_WIDTH * MESH_HEIGHT). **/
+		/** Cellules du maillages (MESH_WIDTH * MESH_HEIGHT * DIRECTIONS). **/
 		lbm_mesh_cell_t cells;
 		/** Largeur du maillage local (mailles fantome comprises). **/
 		int width;
@@ -113,7 +113,7 @@ static inline lbm_mesh_cell_t Mesh_get_cell(const Mesh *mesh, int x, int y) {
 	assert(mesh->cells != NULL);
 	assert(x >= 0 && x < mesh->width);
 	assert(y >= 0 && y < mesh->height);
-	assert(mesh->height * mesh->width > idx);
+	assert(mesh->height * mesh->width * DIRECTIONS > idx);
 	return &(mesh->cells[idx]);
 }
 
