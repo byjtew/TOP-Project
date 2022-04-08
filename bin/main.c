@@ -15,20 +15,44 @@
 #include "lbm_init.h"
 #include "lbm_comm.h"
 
+static int win_mutex = -1;
+
 /*******************  FUNCTION  *********************/
+
+
 // Printf overload
 void mpi_put(const char *format, ...) {
 	int rank, offset = 0;
 	char buffer[1024];
 	va_list args;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	offset += sprintf(buffer, "[P%d]: ", rank);
+	if (rank == 0) // orange
+		offset += sprintf(buffer + offset, "\033[0;33m");
+	else // white
+		offset += sprintf(buffer + offset, "\033[0;37m");
+
+	offset += sprintf(buffer + offset, "[P%d]: ", rank);
 	va_start(args, format);
 	offset += vsprintf(buffer + offset, format, args);
 	va_end(args);
 	offset += sprintf(buffer + offset, "\n");
+	// Remove color code
+	offset += sprintf(buffer + offset, "\033[0m");
+	// Lock the mutex
+	MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win_mutex);
 	printf(buffer, args);
+	// Unlock the mutex
+	MPI_Win_unlock(0, win_mutex);
 	fflush(stdout);
+}
+
+// Create a single mutex for all the processes, accessible by MPI_Win_lock
+void create_mutex(void) {
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Win_create(&rank, sizeof(int), sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, &win_mutex);
+	MPI_Win_fence(0, win_mutex);
+	mpi_put("Creating mutex");
 }
 
 /**
@@ -157,6 +181,7 @@ int main(int argc, char *argv[]) {
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+	create_mutex();
 	mpi_put("MPI Init done");
 
 	//get config filename
