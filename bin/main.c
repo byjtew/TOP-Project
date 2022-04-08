@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
 #include "lbm_config.h"
 #include "lbm_struct.h"
 #include "lbm_phys.h"
@@ -163,6 +164,10 @@ void save_frame(FILE *fp, const Mesh *mesh) {
 		fwrite(buffer, sizeof(lbm_file_entry_t), cnt, fp);
 }
 
+static inline double toMicroSeconds(double seconds) {
+	return seconds * 1000000.0F;
+}
+
 /*******************  FUNCTION  *********************/
 int main(int argc, char *argv[]) {
 	//vars
@@ -219,44 +224,66 @@ int main(int argc, char *argv[]) {
 
 	//barrier to wait all before start
 	MPI_Barrier(MPI_COMM_WORLD);
-	mpi_put("Barrier done.");
 
 	//time steps
-	for (i = 1; i < ITERATIONS; i++) {
+	double iteration_timer;
+	double sub_timer;
+	for (i = 1; i <= ITERATIONS; i++) {
 		//print progress
 		if (rank == RANK_MASTER)
-			printf("Progress [%5d / %5d]\n", i, ITERATIONS);
+			mpi_put("Progress [%5d / %5d]", i, ITERATIONS);
 
+		if (rank == RANK_MASTER)
+			iteration_timer = MPI_Wtime();
+
+
+		if (rank == RANK_MASTER)
+			sub_timer = MPI_Wtime();
 		//compute special actions (border, obstacle...)
 		special_cells(&mesh, &mesh_type, &mesh_comm);
+		if (rank == RANK_MASTER)
+			mpi_put("Special cells computed in %.2lf us", toMicroSeconds(MPI_Wtime() - sub_timer));
 
-		//need to wait all before doing next step
-		MPI_Barrier(MPI_COMM_WORLD);
-
+		if (rank == RANK_MASTER)
+			sub_timer = MPI_Wtime();
 		//compute collision term
 		collision(&temp, &mesh);
+		if (rank == RANK_MASTER)
+			mpi_put("Collision computed in     \t%.2lf us", toMicroSeconds(MPI_Wtime() - sub_timer));
 
-		//need to wait all before doing next step
-		MPI_Barrier(MPI_COMM_WORLD);
-
-		//propagate values from node to neighboors
+		if (rank == RANK_MASTER)
+			sub_timer = MPI_Wtime();
+		//propagate values from node to neighbors
 		lbm_comm_ghost_exchange(&mesh_comm, &temp);
-		propagation(&mesh, &temp);
+		if (rank == RANK_MASTER)
+			mpi_put("Ghost exchange computed in\t%.2lf us", toMicroSeconds(MPI_Wtime() - sub_timer));
 
-		//need to wait all before doing next step
-		MPI_Barrier(MPI_COMM_WORLD);
+		if (rank == RANK_MASTER)
+			sub_timer = MPI_Wtime();
+		propagation(&mesh, &temp);
+		if (rank == RANK_MASTER)
+			mpi_put("Propagation computed in   \t%.2lf us", toMicroSeconds(MPI_Wtime() - sub_timer));
+
+		if (rank == RANK_MASTER) {
+			mpi_put("-- Iteration %.5d took    \t%.2lf us", i, toMicroSeconds(MPI_Wtime() - iteration_timer));
+		}
 
 		//save step
-		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL)
+		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL) {
+			mpi_put("Saving step");
 			save_frame_all_domain(fp, &mesh, &temp_render);
+		}
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (rank == RANK_MASTER && fp != NULL) {
+		mpi_put("Close output file");
 		close_file(fp);
 	}
 
 	//free memory
+	if (rank == RANK_MASTER)
+		mpi_put("Freeing memory...");
 	lbm_comm_release(&mesh_comm);
 	Mesh_release(&mesh);
 	Mesh_release(&temp);
@@ -265,6 +292,5 @@ int main(int argc, char *argv[]) {
 
 	//close MPI
 	MPI_Finalize();
-
 	return EXIT_SUCCESS;
 }
