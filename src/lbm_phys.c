@@ -1,6 +1,5 @@
 /********************  HEADERS  *********************/
 #include <assert.h>
-#include <stdlib.h>
 #include "lbm_config.h"
 #include "lbm_struct.h"
 #include "lbm_phys.h"
@@ -134,17 +133,33 @@ void compute_cell_collision(lbm_mesh_cell_t cell_out, const lbm_mesh_cell_t cell
  * Applique une reflexion sur les différentes directions pour simuler la présence d'un solide.
 **/
 void compute_bounce_back(lbm_mesh_cell_t cell) {
-	//vars
+	/*//vars
 	int k;
-	double tmp[DIRECTIONS];
+	double tmp[DIRECTIONS];*/
 
 	//compute bounce back
-	for (k = 0; k < DIRECTIONS; k++)
+/*	for (k = 0; k < DIRECTIONS; k++)
 		tmp[k] = cell[opposite_of[k]];
+	*/
+	// nb: Equivalent to tmp = cell[0,3,4,1,2,7,8,5,6]
+	//                         indx[0,1,2,3,4,5,6,7,8]
+	double swap_tmp = cell[4];
+	cell[4] = cell[2];
+	cell[2] = swap_tmp;
+	swap_tmp = cell[3];
+	cell[3] = cell[1];
+	cell[1] = swap_tmp;
+	swap_tmp = cell[5];
+	cell[5] = cell[7];
+	cell[7] = swap_tmp;
+	swap_tmp = cell[6];
+	cell[6] = cell[8];
+	cell[8] = swap_tmp;
+
 
 	//compute bounce back
-	for (k = 0; k < DIRECTIONS; k++)
-		cell[k] = tmp[k];
+/*	for (k = 0; k < DIRECTIONS; k++)
+		cell[k] = tmp[k];*/
 }
 
 /*******************  FUNCTION  *********************/
