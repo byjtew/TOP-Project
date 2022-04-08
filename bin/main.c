@@ -112,8 +112,6 @@ FILE *open_output_file(lbm_comm_t *mesh_comm) {
 }
 
 void close_file(FILE *fp) {
-	//wait all before closing
-	MPI_Barrier(MPI_COMM_WORLD);
 	//close file
 	fclose(fp);
 }
@@ -253,6 +251,7 @@ int main(int argc, char *argv[]) {
 			save_frame_all_domain(fp, &mesh, &temp_render);
 	}
 
+	MPI_Barrier(MPI_COMM_WORLD);
 	if (rank == RANK_MASTER && fp != NULL) {
 		close_file(fp);
 	}
