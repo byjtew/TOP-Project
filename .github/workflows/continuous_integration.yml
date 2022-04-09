@@ -44,15 +44,14 @@ jobs:
         working-directory: ${{github.workspace}}/build/bin
         # Replaces the iteration amount by 10, then run the program with 4 processes
         run: |
-          sed -i '0,/\([0-9]\+\)/s//4/g' config.txt
-          mpirun -np 4 ./main
+          mpirun -np 4 ./main small_config.txt
 
       - name: Anaylse results
         working-directory: ${{github.workspace}}/build/bin
         run: |
           mkdir GIF_TMP && \
           sh gen_animate_gif_legacy.sh ./resultat.raw ./output.gif && \
-          [[ $? -eq 0 ]] && echo "Success" || echo "Failure" && exit 1
+          [[ $? -eq 0 ]] && echo "Success" || (echo "Failure" && exit 1)
 
 
       

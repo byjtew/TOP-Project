@@ -51,7 +51,8 @@ set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 add_subdirectory(src)
 
 # Executables
-set(CONFIG_FILE ${CMAKE_SOURCE_DIR}/config.txt)
+configure_file(${CMAKE_SOURCE_DIR}/config.txt ${CMAKE_BINARY_DIR}/bin/config.txt COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/small_config.txt ${CMAKE_BINARY_DIR}/bin/small_config.txt COPYONLY)
 add_subdirectory(bin)
 
 # Scripts
