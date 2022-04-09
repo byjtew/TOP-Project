@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include "lbm_struct.h"
 
+#define HEADER_SIZE 16
+
 /*******************  ENUM  *********************/
 
 typedef enum lbm_output_format_e {
@@ -158,9 +160,15 @@ void do_checksum(lbm_data_file_t *file) {
 /*******************  FUNCTION  *********************/
 int get_frame_count(lbm_data_file_t *file) {
 	struct stat info;
-	if (fstat(fileno(file->fp), &info) == 0)
-		return info.st_size / (file->header.mesh_width * file->header.mesh_height * sizeof(lbm_file_entry_t));
-	else
+	if (fstat(fileno(file->fp), &info) == 0) {
+		int divided = (int) ((info.st_size) /
+		                     (file->header.mesh_width * file->header.mesh_height * sizeof(lbm_file_entry_t)));
+		int remainder =
+				(info.st_size) % (file->header.mesh_width * file->header.mesh_height * sizeof(lbm_file_entry_t));
+		printf("remainder: %d\n", remainder);
+		printf("divided: %d\n", divided);
+		return divided - remainder / HEADER_SIZE;
+	} else
 		return 0;
 }
 
