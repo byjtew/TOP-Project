@@ -118,6 +118,18 @@ static inline lbm_mesh_cell_t Mesh_get_cell(const Mesh *mesh, int x, int y) {
 }
 
 /*******************  FUNCTION  *********************/
+/** Mesh is in COL_MAJOR order.
+ *          --- x --->
+ * -------------------------------
+ * |	|  |  |  |  |  |  |  |  |  |   |
+ * |  |  |  |  |  |  |  |  |  |  |   |
+ * |  |  |  |  |  |  |  |  |  |  |   y
+ * |  |  |  |  |  |  |  |  |  |  |   |
+ * |  |  |  |  |  |  |  |  |  |  |   |
+ * |  |  |  |  |  |  |  |  |  |  |  \/
+ * -------------------------------
+ */
+
 /**
  * Fonction à utiliser pour récupérer une colonne (suivant y, x fixé) du maillage en fonction de ses coordonnées.
 **/
