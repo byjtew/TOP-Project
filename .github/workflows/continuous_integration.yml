@@ -23,7 +23,7 @@ jobs:
       - name: Install requirements
         run: |
           sudo apt-get update -yq && \
-          sudo apt-get install cmake mpich -yq
+          sudo apt-get install cmake mpich imagemagick gnuplot -yq
 
       - name: Configure CMake
         # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
@@ -34,19 +34,25 @@ jobs:
         # Build your program with the given configuration
         run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
-      - name: Simulate
-        working-directory: ${{github.workspace}}/build/bin
-        run: |
-          # Replaces the iteration amount by 4
-          sed -i '0,/\([0-9]\+\)/s//4/g' config.txt
-          mpirun -np 4 ./main && \
-          frames=$(./display --info resultat.raw 0 | grep frames | sed -e 's/frames=//g')
-          [[ $? -eq 0 ]] || exit 1
-          for i in {0.."$frames"}; do ./display --checksum resultat.raw "$i"; done        
-
       - name: Test
         working-directory: ${{github.workspace}}/build
         # Execute tests defined by the CMake configuration.
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest -C ${{env.BUILD_TYPE}}
+
+      - name: Simulate
+        working-directory: ${{github.workspace}}/build/bin
+        # Replaces the iteration amount by 10, then run the program with 4 processes
+        run: |
+          sed -i '0,/\([0-9]\+\)/s//4/g' config.txt
+          mpirun -np 4 ./main
+
+      - name: Anaylse results
+        working-directory: ${{github.workspace}}/build/bin
+        run: |
+          mkdir GIF_TMP && \
+          sh gen_animate_gif_legacy.sh ./resultat.raw ./output.gif && \
+          [[ $? -eq 0 ]] && echo "Success" || echo "Failure" && exit 1
+
+
       
