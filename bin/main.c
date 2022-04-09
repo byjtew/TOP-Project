@@ -17,16 +17,16 @@
 #include "lbm_comm.h"
 
 static int win_mutex = -1;
+static int rank = -1;
 
 /*******************  FUNCTION  *********************/
 
 
 // Printf overload
 void mpi_put(const char *format, ...) {
-	int rank, offset = 0;
+	int offset = 0;
 	char buffer[1024];
 	va_list args;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	if (rank == 0) // orange
 		offset += sprintf(buffer + offset, "\033[0;33m");
 	else // white
@@ -39,18 +39,20 @@ void mpi_put(const char *format, ...) {
 	offset += sprintf(buffer + offset, "\n");
 	// Remove color code
 	offset += sprintf(buffer + offset, "\033[0m");
+#ifdef RELEASE_MODE
 	// Lock the mutex
 	MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win_mutex);
+#endif
 	printf(buffer, args);
+#ifdef RELEASE_MODE
 	// Unlock the mutex
 	MPI_Win_unlock(0, win_mutex);
+#endif
 	fflush(stdout);
 }
 
 // Create a single mutex for all the processes, accessible by MPI_Win_lock
 void create_mutex(void) {
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Win_create(&rank, sizeof(int), sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, &win_mutex);
 	MPI_Win_fence(0, win_mutex);
 	mpi_put("Creating mutex");
@@ -176,7 +178,7 @@ int main(int argc, char *argv[]) {
 	Mesh temp_render;
 	lbm_mesh_type_t mesh_type;
 	lbm_comm_t mesh_comm;
-	int i, rank, comm_size;
+	int i, comm_size;
 	FILE *fp = NULL;
 	const char *config_filename = NULL;
 
