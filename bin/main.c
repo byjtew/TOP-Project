@@ -187,7 +187,6 @@ int main(int argc, char *argv[]) {
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 	create_mutex();
-	mpi_put("MPI Init done");
 
 	//get config filename
 	if (argc >= 2)
@@ -200,7 +199,6 @@ int main(int argc, char *argv[]) {
 	if (rank == RANK_MASTER)
 		print_config();
 
-	mpi_put("Config loaded");
 	//init structures, allocate memory...
 	lbm_comm_init(&mesh_comm, rank, comm_size, MESH_WIDTH, MESH_HEIGHT);
 	Mesh_init(&mesh, lbm_comm_width(&mesh_comm), lbm_comm_height(&mesh_comm));
@@ -208,26 +206,23 @@ int main(int argc, char *argv[]) {
 	Mesh_init(&temp_render, lbm_comm_width(&mesh_comm), lbm_comm_height(&mesh_comm));
 	lbm_mesh_type_t_init(&mesh_type, lbm_comm_width(&mesh_comm), lbm_comm_height(&mesh_comm));
 
-	mpi_put("Structures init done");
 	//master open the output file
 	if (rank == RANK_MASTER)
 		fp = open_output_file(&mesh_comm);
 
-	mpi_put("Output file opened.");
 	//setup initial conditions on mesh
 	setup_init_state(&mesh, &mesh_type, &mesh_comm);
 	setup_init_state(&temp, &mesh_type, &mesh_comm);
-	mpi_put("Initial conditions setup done.");
 
 	//write initial condition in output file
 	if (lbm_gbl_config.output_filename != NULL)
 		save_frame_all_domain(fp, &mesh, &temp_render);
-	mpi_put("Initial condition written.");
 
 	//barrier to wait all before start
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	//time steps
+	double total_time = 0;
 	double iteration_timer = 0;
 	double sub_timer = 0;
 	for (i = 1; i <= ITERATIONS; i++) {
@@ -266,13 +261,16 @@ int main(int argc, char *argv[]) {
 		if (rank == RANK_MASTER)
 			mpi_put("Propagation computed in   \t%.2lf us", toMicroSeconds(MPI_Wtime() - sub_timer));
 
-		if (rank == RANK_MASTER)
-			mpi_put("-- Iteration %.5d took    \t%.2lf us", i, toMicroSeconds(MPI_Wtime() - iteration_timer));
+		if (rank == RANK_MASTER) {
+			double elapsed = MPI_Wtime() - iteration_timer;
+			mpi_put("-- Iteration %.5d took    \t%.2lf us", i, toMicroSeconds(elapsed));
+			total_time += MPI_Wtime() - iteration_timer;
+		}
 
 
 		//save step
 		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL) {
-			mpi_put("Saving step");
+			if (rank == RANK_MASTER)mpi_put("Saving step");
 			save_frame_all_domain(fp, &mesh, &temp_render);
 		}
 	}
@@ -282,6 +280,8 @@ int main(int argc, char *argv[]) {
 		mpi_put("Close output file");
 		close_file(fp);
 	}
+	if (rank == RANK_MASTER)
+		mpi_put("\n-- Total time : %.2lf s ~ %.2lf µs / iter\n\n", total_time, toMicroSeconds(total_time) / ITERATIONS);
 
 	//free memory
 	if (rank == RANK_MASTER)
