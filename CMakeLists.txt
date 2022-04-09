@@ -6,16 +6,21 @@ project(top-project LANGUAGES C)
 set(PROJECT_DESCRIPTION "")
 
 ## Build type (Debug, Release, RelWithDebInfo, MinSizeRel)
-if(NOT CMAKE_BUILD_TYPE)
+if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
-endif()
+endif ()
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 ## C standards
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 ## C flags
-set(CMAKE_C_FLAGS "-Wall -Wextra -pedantic -std=c99 -lm -g -O0")
+if (${CMAKE_BUILD_TYPE} MATCHES Debug)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -Wall -Wextra -Wpedantic -Werror")
+else ()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -Wall -Wextra -Wpedantic -Werror")
+endif ()
 
 ## MPI support
 message(STATUS "Looking for mpicc...")
