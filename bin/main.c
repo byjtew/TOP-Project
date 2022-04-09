@@ -221,6 +221,8 @@ int main(int argc, char *argv[]) {
 	//barrier to wait all before start
 	MPI_Barrier(MPI_COMM_WORLD);
 
+	lbm_comm_ghost_exchange_init(&mesh_comm);
+
 	//time steps
 	double total_time = 0;
 	double iteration_timer = 0;
@@ -274,6 +276,8 @@ int main(int argc, char *argv[]) {
 			save_frame_all_domain(fp, &mesh, &temp_render);
 		}
 	}
+
+	lbm_comm_ghost_exchange_release();
 
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (rank == RANK_MASTER && fp != NULL) {

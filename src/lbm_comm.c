@@ -207,34 +207,108 @@ void lbm_comm_sync_ghosts_diagonal(lbm_comm_t *mesh_comm, Mesh *mesh, lbm_comm_t
  * @param mesh_comm MeshComm à utiliser
  * @param mesh Mesh a utiliser lors de l'échange des mailles fantomes
 **/
-void lbm_comm_sync_ghosts_vertical(lbm_comm_t *mesh_comm, Mesh *mesh, lbm_comm_type_t comm_type, int target_rank,
-                                   int y) {
-	if (target_rank == -1)
-		return;
-	for (int x = 1; x < mesh->width - 2; x++)
-		switch (comm_type) {
-			case COMM_SEND:
-				MPI_Isend(Mesh_get_cell(mesh, x, y), DIRECTIONS, MPI_DOUBLE, target_rank, 0, MPI_COMM_WORLD,
-				          &mesh_comm->requests[mesh_comm->current_request++]);
-				break;
-			case COMM_RECV:
-				MPI_Irecv(Mesh_get_cell(mesh, x, y), DIRECTIONS, MPI_DOUBLE, target_rank, 0, MPI_COMM_WORLD,
-				          &mesh_comm->requests[mesh_comm->current_request++]);
-				break;
-			default:
-				fatal("Unknown type of communication.");
-		}
+int lbm_comm_sync_ghosts_vertical(lbm_comm_t *mesh_comm, Mesh *mesh, lbm_comm_type_t comm_type, int target_rank,
+                                  int y, double *buffer) {
+	if (target_rank == -1) return 0;
+
+	if (comm_type == COMM_SEND) {
+		for (int x = 1; x < mesh->width - 2; x++)
+			memcpy(buffer + (x - 1) * DIRECTIONS, Mesh_get_cell(mesh, x, y), sizeof(double) * DIRECTIONS);
+		MPI_Isend(buffer, DIRECTIONS * (mesh_comm->width - 2), MPI_DOUBLE, target_rank, 0, MPI_COMM_WORLD,
+		          &mesh_comm->requests[mesh_comm->current_request++]);
+	} else {
+		MPI_Irecv(buffer, DIRECTIONS * (mesh_comm->width - 2), MPI_DOUBLE, target_rank, 0, MPI_COMM_WORLD,
+		          &mesh_comm->requests[mesh_comm->current_request++]);
+		return 1;
+	}
+	return 0;
 }
+
 
 static inline double toMicroSeconds(double seconds) {
 	return seconds * 1000000.0F;
+}
+
+double round_cell(const double *cell) {
+	double sum = 0.0;
+	for (int i = 0; i < DIRECTIONS; i++) sum += cell[i];
+	return sum;
+}
+
+static inline void printInRed(const char *msg) {
+	printf("\033[0;31m%s\033[0m", msg);
+}
+
+static inline void print_cell(lbm_mesh_cell_t cell) {
+	double sum = round_cell(cell);
+	if (isnan(sum))
+		printInRed("   NaN    ");
+	else if (isinf(sum))
+		printInRed("   inf    ");
+	else
+		printf("%+.1e  ", round_cell(cell));
+}
+
+void print_mesh(Mesh *mesh) {
+	int i, j;
+	printf("\n");
+	for (i = 0; i < 2; i++) {
+		for (j = 0; j < mesh->width; j++) print_cell(Mesh_get_cell(mesh, j, i));
+		printf("\n");
+	}
+	for (i = 2; i < mesh->height - 2; i++) {
+		for (j = 0; j < 2; j++) print_cell(Mesh_get_cell(mesh, j, i));
+		for (j = 2; j < mesh->width - 2; j++) printf("   ---    ");
+		for (j = mesh->width - 2; j < mesh->width; j++) print_cell(Mesh_get_cell(mesh, j, i));
+		printf("\n");
+	}
+	for (i = mesh->height - 2; i < mesh->height; i++) {
+		for (j = 0; j < mesh->width; j++) print_cell(Mesh_get_cell(mesh, j, i));
+		printf("\n");
+	}
+	printf("\n");
+	fflush(stdout);
+}
+
+/**
+ * @param borders | top-left corner | top row | top-right corner | right column | bottom-right corner | bottom row | bottom-left corner | left column
+ * @param width mesh width
+ * @param height mesh height
+ */
+void print_buffered_mesh(double **borders, int size) {
+	printf("\n");
+	for (int i = 0; i < size; i += DIRECTIONS)
+		printf("%3.2lf ", round_cell(borders[i]));
+	printf("\n");
+}
+
+double *top_send_buffer = NULL, *top_recv_buffer = NULL, *bot_send_buffer = NULL, *bot_recv_buffer = NULL;
+
+void lbm_comm_ghost_exchange_init(lbm_comm_t *mesh_comm) {
+	top_send_buffer = (double *) malloc(2 * sizeof(double) * DIRECTIONS * (mesh_comm->width - 2));
+	top_recv_buffer = (double *) malloc(2 * sizeof(double) * DIRECTIONS * (mesh_comm->width - 2));
+	bot_send_buffer = (double *) malloc(2 * sizeof(double) * DIRECTIONS * (mesh_comm->width - 2));
+	bot_recv_buffer = (double *) malloc(2 * sizeof(double) * DIRECTIONS * (mesh_comm->width - 2));
+}
+
+void lbm_comm_ghost_exchange_release() {
+	if (top_send_buffer != NULL)
+		free(top_send_buffer);
+	if (top_recv_buffer != NULL)
+		free(top_recv_buffer);
+	if (bot_send_buffer != NULL)
+		free(bot_send_buffer);
+	if (bot_recv_buffer != NULL)
+		free(bot_recv_buffer);
 }
 
 /*******************  FUNCTION  *********************/
 void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	double timer;
 	mesh_comm->current_request = 0;
+	int used_top_recv = 0, used_bot_recv = 0;
 
+	// region Horizontal
 	if (rank == 0)
 		timer = MPI_Wtime();
 	lbm_comm_sync_ghosts_horizontal(mesh_comm, mesh, COMM_SEND, mesh_comm->right_id, mesh_comm->width - 2);
@@ -243,18 +317,23 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	lbm_comm_sync_ghosts_horizontal(mesh_comm, mesh, COMM_RECV, mesh_comm->left_id, 0);
 	if (rank == 0)
 		fprintf(stderr, "Horizontal comms : %5.2lf\n", toMicroSeconds(MPI_Wtime() - timer));
+	// endregion
 
-
+	// region Vertical
 	if (rank == 0)
 		timer = MPI_Wtime();
-	lbm_comm_sync_ghosts_vertical(mesh_comm, mesh, COMM_SEND, mesh_comm->bottom_id, mesh_comm->height - 2);
-	lbm_comm_sync_ghosts_vertical(mesh_comm, mesh, COMM_RECV, mesh_comm->bottom_id, mesh_comm->height - 1);
-	lbm_comm_sync_ghosts_vertical(mesh_comm, mesh, COMM_SEND, mesh_comm->top_id, 1);
-	lbm_comm_sync_ghosts_vertical(mesh_comm, mesh, COMM_RECV, mesh_comm->top_id, 0);
+	lbm_comm_sync_ghosts_vertical(mesh_comm, mesh, COMM_SEND, mesh_comm->bottom_id, mesh_comm->height - 2,
+	                              bot_send_buffer);
+	used_bot_recv = lbm_comm_sync_ghosts_vertical(mesh_comm, mesh, COMM_RECV, mesh_comm->bottom_id, mesh_comm->height - 1,
+	                                              bot_recv_buffer);
+	lbm_comm_sync_ghosts_vertical(mesh_comm, mesh, COMM_SEND, mesh_comm->top_id, 1, top_send_buffer);
+	used_top_recv = lbm_comm_sync_ghosts_vertical(mesh_comm, mesh, COMM_RECV, mesh_comm->top_id, 0, top_recv_buffer);
 	if (rank == 0)
 		fprintf(stderr, "Vertical comms : %5.2lf\n", toMicroSeconds(MPI_Wtime() - timer));
+	// endregion
 
 
+	// region Diagonal
 	if (rank == 0)
 		timer = MPI_Wtime();
 	//top left
@@ -291,15 +370,22 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 		timer = MPI_Wtime();
 	//bottom right
 	lbm_comm_sync_ghosts_diagonal(mesh_comm, mesh, COMM_SEND, mesh_comm->corner_id[CORNER_BOTTOM_RIGHT],
-	                              mesh_comm->width - 2,
-	                              mesh_comm->height - 2);
+	                              mesh_comm->width - 2, mesh_comm->height - 2);
 	lbm_comm_sync_ghosts_diagonal(mesh_comm, mesh, COMM_RECV, mesh_comm->corner_id[CORNER_TOP_LEFT], 0, 0);
 	if (rank == 0)
 		fprintf(stderr, "Bottom right comms : %5.2lf\n", toMicroSeconds(MPI_Wtime() - timer));
+	// endregion
 
 	assert((unsigned long) mesh_comm->current_request <= mesh_comm->max_requests);
 	MPI_Waitall(mesh_comm->current_request, mesh_comm->requests, MPI_STATUSES_IGNORE);
 
+	if (top_recv_buffer != NULL && used_top_recv > 0)
+		for (int x = 1; x < mesh->width - 2; x++)
+			memcpy(Mesh_get_cell(mesh, x, 0), top_recv_buffer + (x - 1) * DIRECTIONS, sizeof(double) * DIRECTIONS);
+	if (bot_recv_buffer != NULL && used_bot_recv > 0)
+		for (int x = 1; x < mesh->width - 2; x++)
+			memcpy(Mesh_get_cell(mesh, x, mesh_comm->height - 1), bot_recv_buffer + (x - 1) * DIRECTIONS,
+			       sizeof(double) * DIRECTIONS);
 }
 
 /*******************  FUNCTION  *********************/

@@ -77,6 +77,10 @@ void lbm_comm_print(lbm_comm_t *mesh);
 /*******************  FUNCTION  *********************/
 void lbm_comm_sync_ghosts_wait(lbm_comm_t *mesh);
 
+void lbm_comm_ghost_exchange_init(lbm_comm_t *mesh_comm);
+
+void lbm_comm_ghost_exchange_release();
+
 void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank);
 
 /*******************  FUNCTION  *********************/
