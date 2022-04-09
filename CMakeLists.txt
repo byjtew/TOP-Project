@@ -17,9 +17,9 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 ## C flags
 if (${CMAKE_BUILD_TYPE} MATCHES Debug)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -Wall -Wextra -Wpedantic -Werror")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -Wall -Wextra -Wpedantic")
 else ()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -Wall -Wextra -Wpedantic -Werror")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -Wall -Wextra -Wpedantic")
 endif ()
 
 ## MPI support
@@ -53,6 +53,12 @@ add_subdirectory(src)
 # Executables
 set(CONFIG_FILE ${CMAKE_SOURCE_DIR}/config.txt)
 add_subdirectory(bin)
+
+# Scripts
+configure_file(${CMAKE_SOURCE_DIR}/gen_animate_gif_legacy.sh ${CMAKE_BINARY_DIR}/bin/gen_animate_gif_legacy.sh COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/gen_animate_gif.sh ${CMAKE_BINARY_DIR}/bin/gen_animate_gif.sh COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/gen_single_image.sh ${CMAKE_BINARY_DIR}/bin/gen_single_image.sh COPYONLY)
+
 
 # Testing
 option(TEST "Enable testing" OFF)
