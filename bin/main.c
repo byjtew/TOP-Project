@@ -226,8 +226,8 @@ int main(int argc, char *argv[]) {
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	//time steps
-	double iteration_timer;
-	double sub_timer;
+	double iteration_timer = 0;
+	double sub_timer = 0;
 	for (i = 1; i <= ITERATIONS; i++) {
 		//print progress
 		if (rank == RANK_MASTER)
@@ -254,7 +254,7 @@ int main(int argc, char *argv[]) {
 		if (rank == RANK_MASTER)
 			sub_timer = MPI_Wtime();
 		//propagate values from node to neighbors
-		lbm_comm_ghost_exchange(&mesh_comm, &temp);
+		lbm_comm_ghost_exchange(&mesh_comm, &temp, rank);
 		if (rank == RANK_MASTER)
 			mpi_put("Ghost exchange computed in\t%.2lf us", toMicroSeconds(MPI_Wtime() - sub_timer));
 
@@ -264,9 +264,9 @@ int main(int argc, char *argv[]) {
 		if (rank == RANK_MASTER)
 			mpi_put("Propagation computed in   \t%.2lf us", toMicroSeconds(MPI_Wtime() - sub_timer));
 
-		if (rank == RANK_MASTER) {
+		if (rank == RANK_MASTER)
 			mpi_put("-- Iteration %.5d took    \t%.2lf us", i, toMicroSeconds(MPI_Wtime() - iteration_timer));
-		}
+
 
 		//save step
 		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL) {

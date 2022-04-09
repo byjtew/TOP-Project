@@ -73,7 +73,7 @@ void lbm_comm_print(lbm_comm_t *mesh);
 /*******************  FUNCTION  *********************/
 void lbm_comm_sync_ghosts_wait(lbm_comm_t *mesh);
 
-void lbm_comm_ghost_exchange(lbm_comm_t *mesh, Mesh *mesh_to_process);
+void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank);
 
 /*******************  FUNCTION  *********************/
 void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp);
