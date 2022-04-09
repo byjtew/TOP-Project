@@ -114,6 +114,7 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 
 	mesh_comm->max_requests = width * 4 + 2 * 4 + 4;
 	mesh_comm->requests = calloc(mesh_comm->max_requests, sizeof(MPI_Request));
+	mesh_comm->statuses = calloc(mesh_comm->max_requests, sizeof(MPI_Request));
 
 	//if more than 1 on y, need transmission buffer
 	if (nb_y > 1) {
@@ -145,6 +146,7 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 		free(mesh_comm->buffer);
 	mesh_comm->buffer = NULL;
 	free(mesh_comm->requests);
+	free(mesh_comm->statuses);
 }
 
 /*******************  FUNCTION  *********************/
@@ -376,8 +378,8 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 		fprintf(stderr, "Bottom right comms : %5.2lf\n", toMicroSeconds(MPI_Wtime() - timer));
 	// endregion
 
-	assert((unsigned long) mesh_comm->current_request <= mesh_comm->max_requests);
-	MPI_Waitall(mesh_comm->current_request, mesh_comm->requests, MPI_STATUSES_IGNORE);
+	assert(mesh_comm->current_request <= mesh_comm->max_requests);
+	MPI_Waitall(mesh_comm->current_request, mesh_comm->requests, mesh_comm->statuses);
 
 	if (top_recv_buffer != NULL && used_top_recv > 0)
 		for (int x = 1; x < mesh->width - 2; x++)

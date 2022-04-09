@@ -54,6 +54,7 @@ typedef struct lbm_comm_t_s {
 		MPI_Request *requests;
 		int max_requests;
 		int current_request;
+		MPI_Status *statuses;
 		lbm_mesh_cell_t buffer;
 } lbm_comm_t;
 
