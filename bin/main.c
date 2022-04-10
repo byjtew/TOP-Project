@@ -300,7 +300,7 @@ int main(int argc, char *argv[]) {
 	lbm_comm_release(&mesh_comm);
 	Mesh_release(&mesh);
 	Mesh_release(&temp);
-	Mesh_release(&temp_render);
+	if (rank == RANK_MASTER)Mesh_release(&temp_render);
 	lbm_mesh_type_t_release(&mesh_type);
 
 	//close MPI
