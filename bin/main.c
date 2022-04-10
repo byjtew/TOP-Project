@@ -181,6 +181,7 @@ int main(int argc, char *argv[]) {
 	//vars
 	Mesh mesh;
 	Mesh temp;
+	// Mesh large enough to hold everyone's mesh (only for MASTER)
 	Mesh temp_render;
 	lbm_mesh_type_t mesh_type;
 	lbm_comm_t mesh_comm;
@@ -209,7 +210,7 @@ int main(int argc, char *argv[]) {
 	lbm_comm_init(&mesh_comm, rank, comm_size, MESH_WIDTH, MESH_HEIGHT);
 	Mesh_init(&mesh, lbm_comm_width(&mesh_comm), lbm_comm_height(&mesh_comm));
 	Mesh_init(&temp, lbm_comm_width(&mesh_comm), lbm_comm_height(&mesh_comm));
-	Mesh_init(&temp_render, lbm_comm_width(&mesh_comm), lbm_comm_height(&mesh_comm));
+	if (rank == RANK_MASTER) Mesh_init(&temp_render, comm_size * lbm_comm_width(&mesh_comm), lbm_comm_height(&mesh_comm));
 	lbm_mesh_type_t_init(&mesh_type, lbm_comm_width(&mesh_comm), lbm_comm_height(&mesh_comm));
 
 	//master open the output file
@@ -278,7 +279,7 @@ int main(int argc, char *argv[]) {
 
 		//save step
 		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL) {
-			if (rank == RANK_MASTER)mpi_put("Saving step");
+			if (rank == RANK_MASTER) mpi_put("Saving step");
 			save_frame_all_domain(fp, &mesh, &temp_render);
 		}
 	}

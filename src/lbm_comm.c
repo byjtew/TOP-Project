@@ -371,9 +371,7 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp) {
 	// Todo: Switch to a Gather
 	//vars
-	int i = 0;
 	int comm_size, rank;
-	MPI_Status status;
 
 	//get rank and comm size
 	MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
@@ -381,19 +379,18 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp) {
 
 	/* If whe have more than one process */
 	if (1 < comm_size) {
-		if (rank == 0) {
-			/* Rank 0 renders its local Mesh */
-			save_frame(fp, source_mesh);
+		MPI_Gather(source_mesh->cells, source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE,
+		           temp->cells, source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE, RANK_MASTER,
+		           MPI_COMM_WORLD);
+		if (rank == RANK_MASTER) {
 			/* Rank 0 receives & render other processes meshes */
-			for (i = 1; i < comm_size; i++) {
-				MPI_Recv(temp->cells, source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE, i, 0, MPI_COMM_WORLD,
-				         &status);
-				save_frame(fp, temp);
+			for (int i = 0; i < comm_size; i++) {
+				Mesh tmp_mesh;
+				tmp_mesh.width = source_mesh->width;
+				tmp_mesh.height = source_mesh->height;
+				tmp_mesh.cells = temp->cells + i * source_mesh->width * source_mesh->height * DIRECTIONS;
+				save_frame(fp, &tmp_mesh);
 			}
-		} else {
-			/* All other ranks send their local mesh */
-			MPI_Send(source_mesh->cells, source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE, 0, 0,
-			         MPI_COMM_WORLD);
 		}
 	} else {
 		/* Only 0 renders its local mesh */
