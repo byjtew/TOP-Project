@@ -16,11 +16,12 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 ## C flags
-if (${CMAKE_BUILD_TYPE} MATCHES Debug OR ${CMAKE_BUILD_TYPE} MATCHES RelWithDebInfo)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -Wall -Wextra -Wpedantic")
+if (${CMAKE_BUILD_TYPE} MATCHES Debug)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0  -Wall -Wextra -Wpedantic")
 else ()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -Wall -Wextra -Wpedantic")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -ffast-math -march=native -Wall -Wextra -Wpedantic")
 endif ()
+message(STATUS "C flags: ${CMAKE_C_FLAGS}")
 
 ## MPI support
 message(STATUS "Looking for mpicc...")
