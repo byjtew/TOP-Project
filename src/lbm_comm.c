@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <omp.h>
 #include "lbm_comm.h"
 
 /*******************  FUNCTION  *********************/
@@ -232,57 +233,25 @@ static inline double toMicroSeconds(double seconds) {
 	return seconds * 1000000.0F;
 }
 
-double round_cell(const double *cell) {
-	double sum = 0.0;
-	for (int i = 0; i < DIRECTIONS; i++) sum += cell[i];
-	return sum;
-}
-
-static inline void printInRed(const char *msg) {
-	printf("\033[0;31m%s\033[0m", msg);
-}
-
-static inline void print_cell(lbm_mesh_cell_t cell) {
-	double sum = round_cell(cell);
-	if (isnan(sum))
-		printInRed("   NaN    ");
-	else if (isinf(sum))
-		printInRed("   inf    ");
-	else
-		printf("%+.1e  ", round_cell(cell));
-}
-
-void print_mesh(Mesh *mesh) {
-	int i, j;
-	printf("\n");
-	for (i = 0; i < 2; i++) {
-		for (j = 0; j < mesh->width; j++) print_cell(Mesh_get_cell(mesh, j, i));
-		printf("\n");
+void checkMeshValid(Mesh *mesh) {
+#ifndef RELEASE_MODE
+#pragma omp parallel for
+	for (int i = 0; i < mesh->width; i++) {
+#pragma omp for
+		for (int j = 0; j < mesh->height; j++) {
+			lbm_mesh_cell_t cell = Mesh_get_cell(mesh, i, j);
+			for (int k = 0; k < DIRECTIONS; k++) {
+				double cell_k = cell[k];
+				if (isnan(cell_k))
+					fatal("NaN detected in mesh");
+				else if (isinf(cell_k))
+					fatal("Inf detected in mesh");
+				else if (cell_k < 0 || cell_k > 8)
+					fatal("Invalid value in mesh");
+			}
+		}
 	}
-	for (i = 2; i < mesh->height - 2; i++) {
-		for (j = 0; j < 2; j++) print_cell(Mesh_get_cell(mesh, j, i));
-		for (j = 2; j < mesh->width - 2; j++) printf("   ---    ");
-		for (j = mesh->width - 2; j < mesh->width; j++) print_cell(Mesh_get_cell(mesh, j, i));
-		printf("\n");
-	}
-	for (i = mesh->height - 2; i < mesh->height; i++) {
-		for (j = 0; j < mesh->width; j++) print_cell(Mesh_get_cell(mesh, j, i));
-		printf("\n");
-	}
-	printf("\n");
-	fflush(stdout);
-}
-
-/**
- * @param borders | top-left corner | top row | top-right corner | right column | bottom-right corner | bottom row | bottom-left corner | left column
- * @param width mesh width
- * @param height mesh height
- */
-void print_buffered_mesh(double **borders, int size) {
-	printf("\n");
-	for (int i = 0; i < size; i += DIRECTIONS)
-		printf("%3.2lf ", round_cell(borders[i]));
-	printf("\n");
+#endif
 }
 
 double *top_send_buffer = NULL, *top_recv_buffer = NULL, *bot_send_buffer = NULL, *bot_recv_buffer = NULL;
@@ -389,6 +358,8 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 		for (int x = 1; x < mesh->width - 2; x++)
 			memcpy(Mesh_get_cell(mesh, x, mesh_comm->height - 1), bot_recv_buffer + (x - 1) * DIRECTIONS,
 			       sizeof(double) * DIRECTIONS);
+
+	checkMeshValid(mesh);
 }
 
 /*******************  FUNCTION  *********************/

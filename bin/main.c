@@ -39,12 +39,12 @@ void mpi_put(const char *format, ...) {
 	offset += sprintf(buffer + offset, "\n");
 	// Remove color code
 	offset += sprintf(buffer + offset, "\033[0m");
-#ifdef RELEASE_MODE
+#ifndef RELEASE_MODE
 	// Lock the mutex
 	MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win_mutex);
 #endif
 	printf(buffer, args);
-#ifdef RELEASE_MODE
+#ifndef RELEASE_MODE
 	// Unlock the mutex
 	MPI_Win_unlock(0, win_mutex);
 #endif

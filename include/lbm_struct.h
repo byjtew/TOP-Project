@@ -4,6 +4,7 @@
 /********************  HEADERS  *********************/
 #include <stdint.h>
 #include <stdio.h>
+#include <assert.h>
 #include "lbm_config.h"
 
 /********************** TYPEDEF *********************/
