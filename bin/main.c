@@ -16,6 +16,12 @@
 #include "lbm_init.h"
 #include "lbm_comm.h"
 
+#ifdef RELEASE_MODE
+#pragma message "Release mode"
+#else
+#pragma message "Debug mode"
+#endif
+
 static int win_mutex = -1;
 static int rank = -1;
 
