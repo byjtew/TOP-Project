@@ -50,8 +50,21 @@ jobs:
         working-directory: ${{github.workspace}}/build/bin
         run: |
           mkdir GIF_TMP && \
-          sh gen_animate_gif_legacy.sh ./resultat.raw ./output.gif && \
+          sh gen_animate_gif_legacy.sh ./resultat.raw ./simulation.gif && \
           [[ $? -eq 0 ]] && echo "Success" || (echo "Failure" && exit 1)
+          tar -czf simulation_images.tar.gz ./GIF_TMP
+
+      - name: Upload visualisation images
+        uses: actions/upload-artifact@v2
+        with:
+          name: simulation-images
+          path: ${{github.workspace}}/build/bin/simulation_images.tar.gz
+
+      - name: Upload visualisation animation
+        uses: actions/upload-artifact@v2
+        with:
+          name: simulation-animation
+          path: ${{github.workspace}}/build/bin/simulation.gif
 
 
       
