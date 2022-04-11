@@ -60,7 +60,7 @@ add_subdirectory(bin)
 configure_file(${CMAKE_SOURCE_DIR}/gen_animate_gif_legacy.sh ${CMAKE_BINARY_DIR}/bin/gen_animate_gif_legacy.sh COPYONLY)
 configure_file(${CMAKE_SOURCE_DIR}/gen_animate_gif.sh ${CMAKE_BINARY_DIR}/bin/gen_animate_gif.sh COPYONLY)
 configure_file(${CMAKE_SOURCE_DIR}/gen_single_image.sh ${CMAKE_BINARY_DIR}/bin/gen_single_image.sh COPYONLY)
-
+configure_file(${CMAKE_SOURCE_DIR}/parallel_gen_animate_gif_legacy.sh ${CMAKE_BINARY_DIR}/bin/parallel_gen_animate_gif_legacy.sh COPYONLY)
 
 # Testing
 option(TEST "Enable testing" OFF)
