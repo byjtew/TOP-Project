@@ -10,6 +10,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <omp.h>
 #include "lbm_config.h"
 #include "lbm_struct.h"
 #include "lbm_phys.h"
@@ -223,10 +224,9 @@ int main(int argc, char *argv[]) {
 	if (lbm_gbl_config.output_filename != NULL)
 		save_frame_all_domain(fp, &mesh, &temp_render);
 
-	//barrier to wait all before start
-	MPI_Barrier(MPI_COMM_WORLD);
+	omp_set_dynamic(1);
 
-	lbm_comm_ghost_exchange_init(&mesh_comm);
+	omp_set_num_threads(4);
 
 	//time steps
 	double total_time = 0;
@@ -278,15 +278,16 @@ int main(int argc, char *argv[]) {
 		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL) {
 			if (rank == RANK_MASTER) mpi_put("Saving step");
 			save_frame_all_domain(fp, &mesh, &temp_render);
+#ifdef RELEASE_MODE
 			float percent = (float) i / (float) ITERATIONS * 100.0F;
 			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i,
 			       ITERATIONS);
 			fflush(stdout);
+#endif
 		}
 	}
 	if (rank == RANK_MASTER)
 		printf("\n");
-	lbm_comm_ghost_exchange_release();
 
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (rank == RANK_MASTER && fp != NULL) {
@@ -294,7 +295,7 @@ int main(int argc, char *argv[]) {
 		close_file(fp);
 	}
 	if (rank == RANK_MASTER)
-		mpi_put("\n-- Total time : %.2lf s ~ %.2lf µs / iter\n\n", total_time, toMicroSeconds(total_time) / ITERATIONS);
+		printf("\n-- Total time : %.2lf s ~ %.2lf µs / iter\n\n", total_time, toMicroSeconds(total_time) / ITERATIONS);
 
 	//free memory
 	if (rank == RANK_MASTER)
