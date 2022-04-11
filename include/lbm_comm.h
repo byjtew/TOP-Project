@@ -56,6 +56,17 @@ typedef struct lbm_comm_t_s {
 		int current_request;
 		MPI_Status *statuses;
 		lbm_mesh_cell_t buffer;
+
+		// Measurements for the communication
+		double *timers;
+		int current_timer;
+
+		// Graph MPI communicator
+		MPI_Comm comm_graph;
+		int nb_per_neigh[8];
+		int displ_per_neigh[8];
+		double *send_borders;
+		double *recv_borders;
 } lbm_comm_t;
 
 /*******************  FUNCTION  *********************/

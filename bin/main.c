@@ -48,9 +48,7 @@ void mpi_put(const char *format, ...) {
 #ifndef RELEASE_MODE
 	// Lock the mutex
 	MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win_mutex);
-#endif
 	printf(buffer, args);
-#ifndef RELEASE_MODE
 	// Unlock the mutex
 	MPI_Win_unlock(0, win_mutex);
 #endif
@@ -276,14 +274,18 @@ int main(int argc, char *argv[]) {
 			total_time += MPI_Wtime() - iteration_timer;
 		}
 
-
 		//save step
 		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL) {
 			if (rank == RANK_MASTER) mpi_put("Saving step");
 			save_frame_all_domain(fp, &mesh, &temp_render);
+			float percent = (float) i / (float) ITERATIONS * 100.0F;
+			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i,
+			       ITERATIONS);
+			fflush(stdout);
 		}
 	}
-
+	if (rank == RANK_MASTER)
+		printf("\n");
 	lbm_comm_ghost_exchange_release();
 
 	MPI_Barrier(MPI_COMM_WORLD);

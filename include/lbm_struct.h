@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
+#include <mpi.h>
 #include "lbm_config.h"
 
 /********************** TYPEDEF *********************/
@@ -112,8 +113,10 @@ static inline lbm_mesh_cell_t Mesh_get_cell(const Mesh *mesh, int x, int y) {
 	int idx = (x * mesh->height + y) * DIRECTIONS;
 	assert(mesh != NULL);
 	assert(mesh->cells != NULL);
-	assert(x >= 0 && x < mesh->width);
-	assert(y >= 0 && y < mesh->height);
+	assert(x >= 0);
+	assert(x < mesh->width);
+	assert(y >= 0);
+	assert(y < mesh->height);
 	assert(mesh->height * mesh->width * DIRECTIONS > idx);
 	return &(mesh->cells[idx]);
 }
