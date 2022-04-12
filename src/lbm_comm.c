@@ -145,22 +145,22 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 
 
 	//region Graph buffers
-
-	int row_length = mesh_comm->width - 2, col_length = mesh_comm->height - 2;
-	int borders_count = DIRECTIONS * (2 * (row_length + col_length) + 4);
-	// [top-left, top, top-right, right, bot-right, bot, bot-left, left]
-	mesh_comm->send_borders = (double *) calloc(borders_count, sizeof(double));
-	mesh_comm->recv_borders = (double *) calloc(borders_count, sizeof(double));
-
 	int nb_neighs = 2;
 	int sources[2];
 	sources[0] = mesh_comm->top_id >= 0 ? mesh_comm->top_id : rank;
 	sources[1] = mesh_comm->bottom_id >= 0 ? mesh_comm->bottom_id : rank;
 
-	mesh_comm->nb_per_neigh[0] = DIRECTIONS * row_length * (mesh_comm->top_id >= 0 ? 1 : 0);
-	mesh_comm->nb_per_neigh[1] = DIRECTIONS * row_length * (mesh_comm->bottom_id >= 0 ? 1 : 0);
-	mesh_comm->displ_per_neigh[0] = 0;
-	mesh_comm->displ_per_neigh[1] = mesh_comm->nb_per_neigh[0];
+	int row_size = (mesh_comm->width - 2);
+	mesh_comm->nb_per_neigh[0] = DIRECTIONS * row_size * (mesh_comm->top_id >= 0 ? 1 : 0);
+	mesh_comm->nb_per_neigh[1] = DIRECTIONS * row_size * (mesh_comm->bottom_id >= 0 ? 1 : 0);
+	// Top-left corner offset for the first row
+	mesh_comm->recv_displ[0] = DIRECTIONS;
+	// Bottom-left corner offset for the last row
+	mesh_comm->recv_displ[1] = DIRECTIONS + mesh_comm->width * DIRECTIONS * (mesh_comm->height - 1);
+	// Second row
+	mesh_comm->send_displ[0] = mesh_comm->width * DIRECTIONS + DIRECTIONS;
+	// Pre-last row
+	mesh_comm->send_displ[1] = DIRECTIONS + mesh_comm->width * DIRECTIONS * (mesh_comm->height - 2);
 
 	// endregion
 
@@ -174,7 +174,6 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	if (rank == 0) fprintf(stderr, "Graph created.\n");
 
 /*
-
 	usleep(rank * 10);
 	int source_neighs[2], dest_neighs[2];
 	int out_nb_neighs = 0;
@@ -218,10 +217,6 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 	mesh_comm->buffer = NULL;
 	free(mesh_comm->requests);
 
-	// Graph section
-	free(mesh_comm->send_borders);
-	free(mesh_comm->recv_borders);
-
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	if (rank == RANK_MASTER) {
@@ -248,60 +243,6 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 	for (int i = 0; i < NB_TIMERS; i++)
 		free(mesh_comm->timers[i]);
 }
-
-/*******************  FUNCTION  *********************/
-/**
- * Debut de communications asynchrones
- * @param mesh_comm MeshComm à utiliser
- * @param mesh Mesh a utiliser lors de l'échange des mailles fantomes
-**/
-void
-lbm_comm_sync_ghosts_horizontal(lbm_comm_t *mesh_comm, Mesh *mesh, lbm_comm_type_t comm_type, int target_rank,
-                                int x) {
-	//if target is -1, no comm
-	if (target_rank == -1)
-		return;
-
-	switch (comm_type) {
-		case COMM_SEND:
-			MPI_Isend(Mesh_get_col(mesh, x), DIRECTIONS * (mesh_comm->height - 2), MPI_DOUBLE, target_rank, 0,
-			          MPI_COMM_WORLD, &mesh_comm->requests[mesh_comm->current_request++]);
-			break;
-		case COMM_RECV:
-			MPI_Irecv(Mesh_get_col(mesh, x), DIRECTIONS * (mesh_comm->height - 2), MPI_DOUBLE, target_rank, 0,
-			          MPI_COMM_WORLD, &mesh_comm->requests[mesh_comm->current_request++]);
-			break;
-		default:
-			fatal("Unknown type of communication.");
-	}
-}
-
-/*******************  FUNCTION  *********************/
-/**
- * Debut de communications asynchrones
- * @param mesh_comm MeshComm à utiliser
- * @param mesh Mesh a utiliser lors de l'échange des mailles fantomes
-**/
-void lbm_comm_sync_ghosts_diagonal(lbm_comm_t *mesh_comm, Mesh *mesh, lbm_comm_type_t comm_type, int target_rank,
-                                   int x, int y) {
-	//if target is -1, no comm
-	if (target_rank == -1)
-		return;
-
-	switch (comm_type) {
-		case COMM_SEND:
-			MPI_Isend(Mesh_get_cell(mesh, x, y), DIRECTIONS, MPI_DOUBLE, target_rank, 0, MPI_COMM_WORLD,
-			          &mesh_comm->requests[mesh_comm->current_request++]);
-			break;
-		case COMM_RECV:
-			MPI_Irecv(Mesh_get_cell(mesh, x, y), DIRECTIONS, MPI_DOUBLE, target_rank, 0, MPI_COMM_WORLD,
-			          &mesh_comm->requests[mesh_comm->current_request++]);
-			break;
-		default:
-			fatal("Unknown type of communication.");
-	}
-}
-
 
 /*******************  FUNCTION  *********************/
 /**
@@ -343,53 +284,6 @@ void checkMeshValid(Mesh *mesh) {
 	}
 }
 
-// Todo: switch to mesh_comm->displs constants
-// Todo: Thread in tasks and loops
-void build_send_borders_from_mesh(Mesh *mesh, lbm_comm_t *mesh_comm) {
-
-#pragma omp parallel for default(none) shared(mesh_comm, mesh)
-	for (int i = 1; i < mesh->width - 1; i++)
-		memcpy(mesh_comm->send_borders + mesh_comm->displ_per_neigh[0] + i * DIRECTIONS, Mesh_get_cell(mesh, i, 1),
-		       sizeof(double) * DIRECTIONS);
-
-
-#pragma omp parallel for default(none) shared(mesh_comm, mesh)
-	for (int i = 1; i < mesh->width - 1; i++)
-		memcpy(mesh_comm->send_borders + mesh_comm->displ_per_neigh[1] + i * DIRECTIONS,
-		       Mesh_get_cell(mesh, i, mesh->height - 2), sizeof(double) * DIRECTIONS);
-}
-
-
-// Todo: Thread the loop
-void emplace_row_buffer(Mesh *mesh, double *buffer, int y) {
-#pragma omp parallel for default(none) shared(mesh, buffer, y)
-	for (int x = 1; x < mesh->width - 1; x++)
-		memcpy(Mesh_get_cell(mesh, x, y), buffer + (x - 1) * DIRECTIONS, sizeof(double) * DIRECTIONS);
-}
-
-// Todo: unroll and thread in tasks
-void emplace_recv_buffer(Mesh *mesh, lbm_comm_t *mesh_comm) {
-	int *displs = mesh_comm->displ_per_neigh;
-	double *buffer = mesh_comm->recv_borders;
-#pragma omp parallel default(none) shared(mesh, buffer, mesh_comm, displs)
-	{
-#pragma omp single
-		{
-#pragma omp task default(none) shared(mesh_comm, mesh, buffer, displs) // 1 rown
-			{
-				if (mesh_comm->nb_per_neigh[0] > 0) // Top
-					emplace_row_buffer(mesh, buffer + displs[0], 0);
-			}
-#pragma omp task default(none) shared(mesh_comm, mesh, buffer, displs) // 1 row
-			{
-				if (mesh_comm->nb_per_neigh[1] > 0) // Bottom
-					emplace_row_buffer(mesh, buffer + displs[1], mesh->height - 1);
-			}
-#pragma omp taskwait
-		}
-	}
-
-}
 
 /*******************  FUNCTION  *********************/
 void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
@@ -402,19 +296,19 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	*/
 
 	lbm_comm_timers_start(mesh_comm, TIMER_SEND_BUFFER_CREATE);
-	build_send_borders_from_mesh(mesh, mesh_comm);
+	// Row-major baby
 	lbm_comm_timers_stop(mesh_comm, TIMER_SEND_BUFFER_CREATE);
 
 
 	lbm_comm_timers_start(mesh_comm, TIMER_MESH_SYNC);
-	MPI_Neighbor_alltoallv(mesh_comm->send_borders, mesh_comm->nb_per_neigh, mesh_comm->displ_per_neigh, MPI_DOUBLE,
-	                       mesh_comm->recv_borders, mesh_comm->nb_per_neigh, mesh_comm->displ_per_neigh, MPI_DOUBLE,
+	MPI_Neighbor_alltoallv(Mesh_get_cell(mesh, 0, 0), mesh_comm->nb_per_neigh, mesh_comm->send_displ, MPI_DOUBLE,
+	                       Mesh_get_cell(mesh, 0, 0), mesh_comm->nb_per_neigh, mesh_comm->recv_displ, MPI_DOUBLE,
 	                       mesh_comm->comm_graph);
 	lbm_comm_timers_stop(mesh_comm, TIMER_MESH_SYNC);
 
 
 	lbm_comm_timers_start(mesh_comm, TIMER_RECV_BUFFER_EMPLACE);
-	emplace_recv_buffer(mesh, mesh_comm);
+	// Row-major baby
 	lbm_comm_timers_stop(mesh_comm, TIMER_RECV_BUFFER_EMPLACE);
 
 
@@ -441,8 +335,9 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *
 	lbm_comm_timers_start(mesh_comm, TIMER_OUTPUT_GATHER);
 	/* If whe have more than one process */
 	if (1 < comm_size) {
-		MPI_Gather(source_mesh->cells, source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE,
-		           temp->cells, source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE, RANK_MASTER,
+		MPI_Gather(Mesh_get_cell(source_mesh, 0, 0), source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE,
+		           Mesh_get_cell(temp, 0, 0), source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE,
+		           RANK_MASTER,
 		           MPI_COMM_WORLD);
 		if (rank == RANK_MASTER) {
 			/* Rank 0 receives & render other processes meshes */

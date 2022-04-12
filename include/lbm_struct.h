@@ -106,22 +106,6 @@ void save_frame(FILE *fp, const Mesh *mesh);
 void fatal(const char *message);
 
 /*******************  FUNCTION  *********************/
-/**
- * Fonction à utiliser pour récupérer une cellule du maillage en fonction de ses coordonnées.
-**/
-static inline lbm_mesh_cell_t Mesh_get_cell(const Mesh *mesh, int x, int y) {
-	int idx = (x * mesh->height + y) * DIRECTIONS;
-	assert(mesh != NULL);
-	assert(mesh->cells != NULL);
-	assert(x >= 0);
-	assert(x < mesh->width);
-	assert(y >= 0);
-	assert(y < mesh->height);
-	assert(mesh->height * mesh->width * DIRECTIONS > idx);
-	return &(mesh->cells[idx]);
-}
-
-/*******************  FUNCTION  *********************/
 /** Mesh is in COL_MAJOR order.
  *          --- x --->
  * -------------------------------
@@ -134,12 +118,40 @@ static inline lbm_mesh_cell_t Mesh_get_cell(const Mesh *mesh, int x, int y) {
  * -------------------------------
  */
 
+/** Mesh is in ROW_MAJOR order.
+ *          --- width (x) --->
+ *  -------------------------------
+ *  |  |  |  |  |  |  |  |  |  |  |   |
+ *  -------------------------------   |
+ *  |  |  |  |  |  |  |  |  |  |  |   |
+ *  -------------------------------   height (y)
+ *  |  |  |  |  |  |  |  |  |  |  |   |
+ *  ------------------------------- 	|
+ *  |  |  |  |  |  |  |  |  |  |  |	 \/
+ *  -------------------------------
+ */
+
 /**
- * Fonction à utiliser pour récupérer une colonne (suivant y, x fixé) du maillage en fonction de ses coordonnées.
+ * Fonction à utiliser pour récupérer une cellule du maillage en fonction de ses coordonnées.
 **/
-static inline lbm_mesh_cell_t Mesh_get_col(const Mesh *mesh, int x) {
-	//+DIRECTIONS to skip the first (ghost) line
-	return &mesh->cells[x * mesh->height * DIRECTIONS + DIRECTIONS];
+static inline lbm_mesh_cell_t Mesh_get_cell(const Mesh *mesh, int x, int y) {
+	int idx = (y * mesh->width + x) * DIRECTIONS;
+	/*assert(mesh != NULL);
+	assert(mesh->cells != NULL);
+	assert(x >= 0);
+	assert(x < mesh->width);
+	assert(y >= 0);
+	assert(y < mesh->height);
+	assert(mesh->height * mesh->width * DIRECTIONS > idx);*/
+	return &(mesh->cells[idx]);
+}
+
+/*******************  FUNCTION  *********************/
+/**
+ * Fonction à utiliser pour récupérer une ligne (suivant x, y = 1) du maillage en fonction de ses coordonnées.
+**/
+static inline lbm_mesh_cell_t Mesh_get_row(const Mesh *mesh, int x) {
+	return Mesh_get_cell(mesh, x, 1);
 }
 
 /*******************  FUNCTION  *********************/
