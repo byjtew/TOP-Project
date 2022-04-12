@@ -9,6 +9,12 @@
 /*******************  DEFINITIONS  ******************/
 /** Definition de l'ID du processus maître. **/
 #define RANK_MASTER 0
+#define TIMER_MESH_SYNC 0
+#define TIMER_OUTPUT_GATHER 1
+#define TIMER_SEND_BUFFER_CREATE 2
+#define TIMER_RECV_BUFFER_EMPLACE 3
+
+#define NB_USED_TIMER 4
 
 /*********************  ENUM  ***********************/
 /**
@@ -58,8 +64,9 @@ typedef struct lbm_comm_t_s {
 		lbm_mesh_cell_t buffer;
 
 		// Measurements for the communication
-		double *timers;
-		int current_timer;
+#define NB_TIMERS 64
+		double *timers[NB_TIMERS];
+		int current_timer[NB_TIMERS];
 
 		// Graph MPI communicator
 		MPI_Comm comm_graph;
@@ -84,6 +91,10 @@ void lbm_comm_init(lbm_comm_t *mesh, int rank, int comm_size, int width, int hei
 
 void lbm_comm_release(lbm_comm_t *mesh);
 
+void lbm_comm_timers_start(lbm_comm_t *mesh_comm, int id);
+
+void lbm_comm_timers_stop(lbm_comm_t *mesh_comm, int id);
+
 void lbm_comm_print(lbm_comm_t *mesh);
 
 /*******************  FUNCTION  *********************/
@@ -96,6 +107,6 @@ void lbm_comm_ghost_exchange_release();
 void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank);
 
 /*******************  FUNCTION  *********************/
-void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp);
+void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *mesh_comm);
 
 #endif

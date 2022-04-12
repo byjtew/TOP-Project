@@ -222,7 +222,7 @@ int main(int argc, char *argv[]) {
 
 	//write initial condition in output file
 	if (lbm_gbl_config.output_filename != NULL)
-		save_frame_all_domain(fp, &mesh, &temp_render);
+		save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);
 
 	omp_set_dynamic(1);
 
@@ -277,7 +277,7 @@ int main(int argc, char *argv[]) {
 		//save step
 		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL) {
 			if (rank == RANK_MASTER) mpi_put("Saving step");
-			save_frame_all_domain(fp, &mesh, &temp_render);
+			save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);
 #ifdef RELEASE_MODE
 			float percent = (float) i / (float) ITERATIONS * 100.0F;
 			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i,

@@ -9,6 +9,15 @@
 #include <omp.h>
 #include "lbm_comm.h"
 
+// If OpenMP is not available, define OPENMP_AVAILABLE
+#ifndef _OPENMP
+#define OPENMP_AVAILABLE 0
+#pragma message "OpenMP is not available"
+#else
+#define OPENMP_AVAILABLE 1
+#pragma message "OpenMP is available"
+#endif
+
 /*******************  FUNCTION  *********************/
 int lbm_helper_pgcd(int a, int b) {
 	int c;
@@ -18,6 +27,24 @@ int lbm_helper_pgcd(int a, int b) {
 		b = c;
 	}
 	return a;
+}
+
+void lbm_comm_timers_start(lbm_comm_t *mesh_comm, int id) {
+	if (id >= NB_TIMERS) {
+		fprintf(stderr, "timer_id too high.\n");
+		abort();
+	}
+	mesh_comm->timers[id][mesh_comm->current_timer[id]] = MPI_Wtime();
+}
+
+void lbm_comm_timers_stop(lbm_comm_t *mesh_comm, int id) {
+	if (id >= NB_TIMERS) {
+		fprintf(stderr, "timer_id too high.\n");
+		abort();
+	}
+	mesh_comm->timers[id][mesh_comm->current_timer[id]] =
+			MPI_Wtime() - mesh_comm->timers[id][mesh_comm->current_timer[id]];
+	mesh_comm->current_timer[id]++;
 }
 
 /*******************  FUNCTION  *********************/
@@ -125,8 +152,10 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 		mesh_comm->buffer = NULL;
 	}
 
-	mesh_comm->current_timer = 0;
-	mesh_comm->timers = calloc(ITERATIONS, sizeof(double));
+	for (int i = 0; i < NB_TIMERS; i++) {
+		mesh_comm->current_timer[i] = 0;
+		mesh_comm->timers[i] = calloc(ITERATIONS, sizeof(double));
+	}
 
 
 	//region Graph buffers
@@ -228,14 +257,22 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 		char filename[64];
 		int world_size;
 		MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-		sprintf(filename, "timers-Graph-comm-only-nothread-n%d.txt", world_size);
-		FILE *fp = fopen(filename, "w");
-		for (int i = 0; i < mesh_comm->current_timer; i++)
-			fprintf(fp, "%d %lf\n", i, mesh_comm->timers[i]);
-		fclose(fp);
+		for (int o = 0; o < NB_USED_TIMER; o++) {
+			sprintf(filename, "timers-%d-t%d-n%d-i%d-o%d.txt", o, OPENMP_AVAILABLE, world_size, ITERATIONS,
+			        WRITE_STEP_INTERVAL);
+			FILE *fp = fopen(filename, "w");
+			double mean = 0;
+			for (int t = 0; t < mesh_comm->current_timer[o]; t++) mean += mesh_comm->timers[o][t];
+			mean /= mesh_comm->current_timer[o];
+			fprintf(fp, "0 %lf\n", mean);
+			for (int t = 0; t < mesh_comm->current_timer[o]; t++)
+				fprintf(fp, "%d %lf\n", t + 1, mesh_comm->timers[o][t]);
+			fclose(fp);
+		}
 	}
 
-	free(mesh_comm->timers);
+	for (int i = 0; i < NB_TIMERS; i++)
+		free(mesh_comm->timers[i]);
 }
 
 /*******************  FUNCTION  *********************/
@@ -315,13 +352,7 @@ int lbm_comm_sync_ghosts_vertical(lbm_comm_t *mesh_comm, Mesh *mesh, lbm_comm_ty
 	return 0;
 }
 
-
-static inline double toMicroSeconds(double seconds) {
-	return seconds * 1000000.0F;
-}
-
 void checkMeshValid(Mesh *mesh) {
-#pragma omp parallel for default(none) shared(mesh)
 	for (int i = 0; i < mesh->width; i++) {
 		for (int j = 0; j < mesh->height; j++) {
 			lbm_mesh_cell_t cell = Mesh_get_cell(mesh, i, j);
@@ -378,42 +409,54 @@ void build_send_borders_from_mesh(Mesh *mesh, lbm_comm_t *mesh_comm) {
 // Todo: Thread the loop
 void emplace_row_buffer(Mesh *mesh, double *buffer, int y) {
 #pragma omp parallel for default(none) shared(mesh, buffer, y)
-	for (int i = 1; i < mesh->width - 1; i++)
-		memcpy(Mesh_get_cell(mesh, i, y), buffer + (i - 1) * DIRECTIONS, sizeof(double) * DIRECTIONS);
+	for (int x = 1; x < mesh->width - 1; x++)
+		memcpy(Mesh_get_cell(mesh, x, y), buffer + (x - 1) * DIRECTIONS, sizeof(double) * DIRECTIONS);
 }
 
 // Todo: unroll and thread in tasks
 void emplace_recv_buffer(Mesh *mesh, lbm_comm_t *mesh_comm) {
 	int *displs = mesh_comm->displ_per_neigh;
 	double *buffer = mesh_comm->recv_borders;
-#pragma omp parallel for default(none) shared(mesh, buffer, displs, mesh_comm)
-	for (int i = 0; i < 8; i++) {
-		if (mesh_comm->nb_per_neigh[i] <= 0) continue;
-		// Top-left
-		if (i == 0) memcpy(Mesh_get_cell(mesh, 0, 0), buffer + displs[i], DIRECTIONS);
-			// Top row
-		else if (i == 1) emplace_row_buffer(mesh, buffer + displs[i], 0);
-			// Top-right
-		else if (i == 2) memcpy(Mesh_get_cell(mesh, mesh->width - 1, 0), buffer + displs[i], DIRECTIONS);
-			// Right
-		else if (i == 3) memcpy(Mesh_get_col(mesh, mesh->width - 1), buffer + displs[i], DIRECTIONS * mesh->height - 2);
-			// Bottom-right
-		else if (i == 4) memcpy(Mesh_get_cell(mesh, mesh->width - 1, mesh->height - 1), buffer + displs[i], DIRECTIONS);
-			// Bottom row
-		else if (i == 5) emplace_row_buffer(mesh, buffer + displs[i], mesh->height - 1);
-			// Bottom-left
-		else if (i == 6) memcpy(Mesh_get_cell(mesh, 0, mesh->height - 1), buffer + displs[i], DIRECTIONS);
-			// Left
-		else memcpy(Mesh_get_col(mesh, 0), buffer + displs[i], DIRECTIONS * mesh->height - 2);
+#pragma omp parallel default(none) shared(mesh, buffer, mesh_comm, displs)
+	{
+#pragma omp single
+		{
+#pragma omp task default(none) shared(mesh_comm, mesh, buffer, displs) // 1 rown
+			{
+				if (mesh_comm->nb_per_neigh[1] > 0) // Top
+					emplace_row_buffer(mesh, buffer + displs[1], 0);
+			}
+#pragma omp task default(none) shared(mesh_comm, mesh, buffer, displs) // 2 corners + 1 column
+			{
+				if (mesh_comm->nb_per_neigh[2] > 0) // Top-right
+					memcpy(Mesh_get_cell(mesh, mesh->width - 1, 0), buffer + displs[2], DIRECTIONS);
+				if (mesh_comm->nb_per_neigh[3] > 0) // Right
+					memcpy(Mesh_get_col(mesh, mesh->width - 1), buffer + displs[3], DIRECTIONS * mesh->height - 2);
+				if (mesh_comm->nb_per_neigh[4] > 0) // Bottom-right
+					memcpy(Mesh_get_cell(mesh, mesh->width - 1, mesh->height - 1), buffer + displs[4], DIRECTIONS);
+			}
+#pragma omp task default(none) shared(mesh_comm, mesh, buffer, displs) // 1 row
+			{
+				if (mesh_comm->nb_per_neigh[5] > 0) // Bottom
+					emplace_row_buffer(mesh, buffer + displs[5], mesh->height - 1);
+			}
+#pragma omp task default(none) shared(mesh_comm, mesh, buffer, displs) // 2 corners + 1 column
+			{
+				if (mesh_comm->nb_per_neigh[6] > 0) // Bottom-left
+					memcpy(Mesh_get_cell(mesh, 0, mesh->height - 1), buffer + displs[6], DIRECTIONS);
+				if (mesh_comm->nb_per_neigh[7] > 0) // Left
+					memcpy(Mesh_get_col(mesh, 0), buffer + displs[7], DIRECTIONS * mesh->height - 2);
+				if (mesh_comm->nb_per_neigh[0] > 0) // Top-left
+					memcpy(Mesh_get_cell(mesh, 0, 0), buffer + displs[0], DIRECTIONS);
+			}
+#pragma omp taskwait
+		}
 	}
+
 }
 
 /*******************  FUNCTION  *********************/
 void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
-	mesh_comm->current_request = 0;
-
-
-
 	/*
 	// Build borders buffers (send & recv)
 	fprintf(stderr, "Mesh size: %d x %d\n", mesh->width, mesh->height);
@@ -422,7 +465,9 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	fprintf(stderr, "col_length: %d\n", col_length);
 	*/
 
+	lbm_comm_timers_start(mesh_comm, TIMER_SEND_BUFFER_CREATE);
 	build_send_borders_from_mesh(mesh, mesh_comm);
+	lbm_comm_timers_stop(mesh_comm, TIMER_SEND_BUFFER_CREATE);
 
 
 	/*fprintf(stderr, "send_counts: ");
@@ -430,12 +475,11 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	fprintf(stderr, "\n");
 */
 
-	mesh_comm->timers[mesh_comm->current_timer] = MPI_Wtime();
+	lbm_comm_timers_start(mesh_comm, TIMER_MESH_SYNC);
 	MPI_Neighbor_alltoallv(mesh_comm->send_borders, mesh_comm->nb_per_neigh, mesh_comm->displ_per_neigh, MPI_DOUBLE,
 	                       mesh_comm->recv_borders, mesh_comm->nb_per_neigh, mesh_comm->displ_per_neigh, MPI_DOUBLE,
 	                       mesh_comm->comm_graph);
-	mesh_comm->timers[mesh_comm->current_timer] = MPI_Wtime() - mesh_comm->timers[mesh_comm->current_timer];
-	mesh_comm->current_timer++;
+	lbm_comm_timers_stop(mesh_comm, TIMER_MESH_SYNC);
 /*
 	sleep(3*rank);
 	printf("Process %d, recv:\n", rank);
@@ -448,7 +492,9 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	printf("\n==========================================================\n\n");
 */
 
+	lbm_comm_timers_start(mesh_comm, TIMER_RECV_BUFFER_EMPLACE);
 	emplace_recv_buffer(mesh, mesh_comm);
+	lbm_comm_timers_stop(mesh_comm, TIMER_RECV_BUFFER_EMPLACE);
 
 
 #ifndef RELEASE_MODE
@@ -462,7 +508,7 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
  * @param mesh_comm MeshComm à utiliser
  * @param temp Mesh a utiliser pour stocker les segments
 **/
-void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp) {
+void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *mesh_comm) {
 	// Todo: Switch to a Gather
 	//vars
 	int comm_size, rank;
@@ -471,6 +517,7 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp) {
 	MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+	lbm_comm_timers_start(mesh_comm, TIMER_OUTPUT_GATHER);
 	/* If whe have more than one process */
 	if (1 < comm_size) {
 		MPI_Gather(source_mesh->cells, source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE,
@@ -490,6 +537,7 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp) {
 		/* Only 0 renders its local mesh */
 		save_frame(fp, source_mesh);
 	}
+	lbm_comm_timers_stop(mesh_comm, TIMER_OUTPUT_GATHER);
 
 }
 
