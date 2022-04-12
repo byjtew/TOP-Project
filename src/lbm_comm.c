@@ -196,7 +196,12 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 
 	assert(nb_neighs >= 1);
 
-	MPI_Dist_graph_create_adjacent(MPI_COMM_WORLD, nb_neighs, sources, MPI_UNWEIGHTED, nb_neighs, sources, MPI_UNWEIGHTED,
+	int weights[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+	for (int i = 0; i < 8; i++)
+		weights[i] = mesh_comm->nb_per_neigh[i] > 0;
+
+	MPI_Dist_graph_create_adjacent(MPI_COMM_WORLD, nb_neighs, sources, weights,
+	                               nb_neighs, sources, weights,
 	                               MPI_INFO_NULL, 1, &mesh_comm->comm_graph);
 	if (rank == 0) fprintf(stderr, "Graph created.\n");
 	/*

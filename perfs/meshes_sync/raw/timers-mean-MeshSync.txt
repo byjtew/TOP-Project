@@ -1,0 +1,4 @@
+# TypeOfComm MeanComm Preprocess Postprocess
+Empty MPI pre-process post-process
+Weighted 0.000491 0.000061 0.000394
+NotWeighted 0.00186 0.000061 0.000394
