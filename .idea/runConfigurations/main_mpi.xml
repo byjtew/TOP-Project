@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="main_mpi" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-np 2 ./main" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" WORKING_DIR="file://$CMakeCurrentBuildDir$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="top-project" TARGET_NAME="main" CONFIG_NAME="Debug-MPI" RUN_PATH="/usr/local/mpich-3.4.1/bin/mpirun">
+  <configuration default="false" name="main_mpi" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-np 4 ./main" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" WORKING_DIR="file://$CMakeCurrentBuildDir$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="top-project" TARGET_NAME="main" CONFIG_NAME="Default-MPI" RUN_PATH="/usr/local/mpich-3.4.1/bin/mpirun">
     <method v="2">
       <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
     </method>

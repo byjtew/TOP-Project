@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="KNL01 (f1ba6b3d-4abd-4e3a-ae5d-6f6ea9433ae8)" traceLevel="BRIEF" autoUploadExternalChanges="true" compareModeInSync="TIMESTAMP" showEqualInSync="true" showDifferentInSync="false" showExcludedInSync="true">
+    <serverData>
+      <paths name="KNL01 (f1ba6b3d-4abd-4e3a-ae5d-6f6ea9433ae8)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="cmake-build-remote" local="$PROJECT_DIR$" />
+          </mappings>
+          <excludedPaths>
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-relwithdebinfo-knl01" />
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-debug-knl01" />
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-relwithdebinfo-mpi" />
+            <excludedPath local="true" path="$PROJECT_DIR$/../../../user2231/cmake-build-debug-mpi" />
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-debug-mpi" />
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-*" />
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-release-knl01" />
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-default-mpi" />
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-relwithdebinfo-knl01-oneapi" />
+          </excludedPaths>
+        </serverdata>
+      </paths>
+      <paths name="KNL01_oneapi (1cb2297c-cf3d-47da-bdec-c986fa76a8c8)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/tmp/tmp.zGP9ICmXD2" local="$PROJECT_DIR$" />
+          </mappings>
+          <excludedPaths>
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-debug-knl01" />
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-relwithdebinfo-knl01" />
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-relwithdebinfo-mpi" />
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-debug-mpi" />
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-release-knl01" />
+            <excludedPath local="true" path="$PROJECT_DIR$/cmake-build-relwithdebinfo-knl01-oneapi" />
+          </excludedPaths>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>
