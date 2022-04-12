@@ -3,7 +3,7 @@
 ### Author: Benjamin Lozes
 
 \
-![Simulation animation](./perfs/simulation.gif)
+![Simulation animation](./simulation.gif)
 *Dernière simulation réalisée*
 
 ---
