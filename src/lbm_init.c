@@ -97,16 +97,15 @@ void setup_init_state_border(Mesh *mesh, lbm_mesh_type_t *mesh_type, const lbm_c
 	const double density = 1.0;
 
 	//setup left border type
-	if (mesh_comm->left_id == -1) {
-		for (j = 1; j < mesh->height - 1; j++)
-			*(lbm_cell_type_t_get_cell(mesh_type, 0, j)) = CELL_LEFT_IN;
-	}
 
-	if (mesh_comm->right_id == -1) {
-		//setup right border type
-		for (j = 1; j < mesh->height - 1; j++)
-			*(lbm_cell_type_t_get_cell(mesh_type, mesh->width - 1, j)) = CELL_RIGHT_OUT;
-	}
+	for (j = 1; j < mesh->height - 1; j++)
+		*(lbm_cell_type_t_get_cell(mesh_type, 0, j)) = CELL_LEFT_IN;
+
+
+	//setup right border type
+	for (j = 1; j < mesh->height - 1; j++)
+		*(lbm_cell_type_t_get_cell(mesh_type, mesh->width - 1, j)) = CELL_RIGHT_OUT;
+
 
 	//top
 	if (mesh_comm->top_id == -1)

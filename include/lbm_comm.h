@@ -17,18 +17,6 @@
 #define NB_USED_TIMER 4
 
 /*********************  ENUM  ***********************/
-/**
- * Definition des différents type de cellule pour savoir quel traitement y appliquer
- * lors du calcul.
-**/
-typedef enum lbm_corner_pos_e {
-		CORNER_TOP_LEFT = 0,
-		CORNER_TOP_RIGHT = 1,
-		CORNER_BOTTOM_LEFT = 2,
-		CORNER_BOTTOM_RIGHT = 3,
-} lbm_corner_pos_t;
-
-/*********************  ENUM  ***********************/
 typedef enum lbm_comm_type_e {
 		COMM_SEND,
 		COMM_RECV
@@ -48,19 +36,15 @@ typedef struct lbm_comm_t_s {
 		int nb_x;
 		int nb_y;
 		/** Id du voisin de droite, -1 si aucun. **/
-		int right_id;
 		/** Id du voisin de gauche, -1 si aucun. **/
-		int left_id;
 		int top_id;
 		int bottom_id;
-		int corner_id[4];
 		/** Requète asynchrone en cours
 		 * @size width*2*2(rows) + 2*4(corners) + 2*2(columns)
 		 * **/
 		MPI_Request *requests;
 		int max_requests;
 		int current_request;
-		MPI_Status *statuses;
 		lbm_mesh_cell_t buffer;
 
 		// Measurements for the communication
@@ -70,8 +54,8 @@ typedef struct lbm_comm_t_s {
 
 		// Graph MPI communicator
 		MPI_Comm comm_graph;
-		int nb_per_neigh[8];
-		int displ_per_neigh[8];
+		int nb_per_neigh[2];
+		int displ_per_neigh[2];
 		double *send_borders;
 		double *recv_borders;
 } lbm_comm_t;
