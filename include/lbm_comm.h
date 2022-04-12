@@ -55,9 +55,8 @@ typedef struct lbm_comm_t_s {
 		// Graph MPI communicator
 		MPI_Comm comm_graph;
 		int nb_per_neigh[2];
-		int displ_per_neigh[2];
-		double *send_borders;
-		double *recv_borders;
+		int send_displ[2];
+		int recv_displ[2];
 } lbm_comm_t;
 
 /*******************  FUNCTION  *********************/
