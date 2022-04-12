@@ -148,10 +148,10 @@ static inline lbm_mesh_cell_t Mesh_get_cell(const Mesh *mesh, int x, int y) {
 
 /*******************  FUNCTION  *********************/
 /**
- * Fonction à utiliser pour récupérer une ligne (suivant x, y = 1) du maillage en fonction de ses coordonnées.
+ * Fonction à utiliser pour récupérer une ligne (suivant y, x = 1) du maillage en fonction de ses coordonnées.
 **/
-static inline lbm_mesh_cell_t Mesh_get_row(const Mesh *mesh, int x) {
-	return Mesh_get_cell(mesh, x, 1);
+static inline lbm_mesh_cell_t Mesh_get_row(const Mesh *mesh, int y) {
+	return Mesh_get_cell(mesh, 1, y);
 }
 
 /*******************  FUNCTION  *********************/

@@ -295,17 +295,43 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	fprintf(stderr, "col_length: %d\n", col_length);
 	*/
 
+#if MESH_SYNC_MODE == MESH_SYNC_UNIT
+	MPI_Request requests[4];
+	int cur_request = 0;
+#endif
+
 	lbm_comm_timers_start(mesh_comm, TIMER_SEND_BUFFER_CREATE);
 	// Row-major baby
 	lbm_comm_timers_stop(mesh_comm, TIMER_SEND_BUFFER_CREATE);
 
+#if MESH_SYNC_MODE == MESH_SYNC_UNIT
+#pragma message "Using async unitary send & recv mesh synchronization"
 
 	lbm_comm_timers_start(mesh_comm, TIMER_MESH_SYNC);
+	if (mesh_comm->top_id >= 0) {
+		MPI_Isend(Mesh_get_row(mesh, 1), mesh->width - 2, MPI_DOUBLE, mesh_comm->top_id, 0, MPI_COMM_WORLD,
+							&requests[cur_request++]);
+		MPI_Irecv(Mesh_get_row(mesh, 0), mesh->width - 2, MPI_DOUBLE, mesh_comm->top_id, 0, MPI_COMM_WORLD,
+							&requests[cur_request++]);
+	}
+	if (mesh_comm->bottom_id >= 0) {
+		MPI_Isend(Mesh_get_row(mesh, mesh->height - 2), mesh->width - 2, MPI_DOUBLE, mesh_comm->bottom_id, 0,
+							MPI_COMM_WORLD,
+							&requests[cur_request++]);
+		MPI_Irecv(Mesh_get_row(mesh, mesh->height - 1), mesh->width - 2, MPI_DOUBLE, mesh_comm->bottom_id, 0,
+							MPI_COMM_WORLD,
+							&requests[cur_request++]);
+	}
+	MPI_Waitall(cur_request, requests, MPI_STATUSES_IGNORE);
+#else
+#if MESH_SYNC_MODE == MESH_SYNC_GRAPH
+#pragma message "Using graph mesh synchronization"
 	MPI_Neighbor_alltoallv(Mesh_get_cell(mesh, 0, 0), mesh_comm->nb_per_neigh, mesh_comm->send_displ, MPI_DOUBLE,
 	                       Mesh_get_cell(mesh, 0, 0), mesh_comm->nb_per_neigh, mesh_comm->recv_displ, MPI_DOUBLE,
 	                       mesh_comm->comm_graph);
+#endif
+#endif
 	lbm_comm_timers_stop(mesh_comm, TIMER_MESH_SYNC);
-
 
 	lbm_comm_timers_start(mesh_comm, TIMER_RECV_BUFFER_EMPLACE);
 	// Row-major baby

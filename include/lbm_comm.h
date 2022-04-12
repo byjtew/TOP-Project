@@ -9,6 +9,14 @@
 /*******************  DEFINITIONS  ******************/
 /** Definition de l'ID du processus maître. **/
 #define RANK_MASTER 0
+
+/** Modes de communication. **/
+#define MESH_SYNC_GRAPH 0
+#define MESH_SYNC_UNIT 1
+
+#define MESH_SYNC_MODE MESH_SYNC_GRAPH
+
+/** Timers **/
 #define TIMER_MESH_SYNC 0
 #define TIMER_OUTPUT_GATHER 1
 #define TIMER_SEND_BUFFER_CREATE 2
