@@ -132,12 +132,6 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	mesh_comm->max_requests = width * 4 + 2 * 4 + 4;
 	mesh_comm->requests = calloc(mesh_comm->max_requests, sizeof(MPI_Request));
 
-	/*//if more than 1 on y, need transmission buffer
-	mesh_comm->buffer = NULL;
-	if (nb_y > 1) {
-		mesh_comm->buffer = malloc(sizeof(double) * DIRECTIONS * width / nb_x);
-	} */
-
 	for (int i = 0; i < NB_TIMERS; i++) {
 		mesh_comm->current_timer[i] = 0;
 		mesh_comm->timers[i] = calloc(ITERATIONS, sizeof(double));
@@ -171,29 +165,7 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	MPI_Dist_graph_create_adjacent(MPI_COMM_WORLD, nb_neighs, sources, weights,
 	                               nb_neighs, sources, weights,
 	                               MPI_INFO_NULL, 1, &mesh_comm->comm_graph);
-	if (rank == 0) fprintf(stderr, "Graph created.\n");
-
-/*
-	usleep(rank * 10);
-	int source_neighs[2], dest_neighs[2];
-	int out_nb_neighs = 0;
-	MPI_Dist_graph_neighbors_count(mesh_comm->comm_graph, &nb_neighs, &out_nb_neighs, MPI_UNWEIGHTED);
-	printf("[P%d]: Entry %d ; Out %d\n", rank, nb_neighs, out_nb_neighs);
-	MPI_Dist_graph_neighbors(mesh_comm->comm_graph, 8, source_neighs, MPI_UNWEIGHTED, 8, dest_neighs, MPI_UNWEIGHTED);
-	printf("[P%d]: SRC Graph_Neighbours{%d} : ", rank, nb_neighs);
-	for (int i = 0; i < out_nb_neighs; i++)
-		if (source_neighs[i] != rank)printf("%.02d ", source_neighs[i]);
-		else printf("-- ");
-	printf("\n");
-	printf("[P%d]: DST Graph_Neighbours{%.02d}: ", rank, nb_neighs);
-	for (int i = 0; i < nb_neighs; i++)
-		if (dest_neighs[i] != rank)printf("%.02d ", dest_neighs[i]);
-		else printf("-- ");
-	printf("\n");
-
-*/
-
-
+	if (rank == 0) printf("Graph created.\n");
 
 	//if debug print comm
 #ifndef NDEBUG
@@ -212,10 +184,8 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 	mesh_comm->y = 0;
 	mesh_comm->width = 0;
 	mesh_comm->height = 0;
-	if (mesh_comm->buffer != NULL)
-		free(mesh_comm->buffer);
-	mesh_comm->buffer = NULL;
-	free(mesh_comm->requests);
+	if (mesh_comm->requests != NULL)
+		free(mesh_comm->requests);
 
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -291,14 +261,6 @@ void checkMeshValid(Mesh *mesh) {
 
 /*******************  FUNCTION  *********************/
 void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
-	/*
-	// Build borders buffers (send & recv)
-	fprintf(stderr, "Mesh size: %d x %d\n", mesh->width, mesh->height);
-	fprintf(stderr, "Mesh_comm size: %d x%d\n", mesh_comm->width, mesh_comm->height);
-	fprintf(stderr, "row_length: %d\n", row_length);
-	fprintf(stderr, "col_length: %d\n", col_length);
-	*/
-
 #if MESH_SYNC_MODE == MESH_SYNC_UNIT
 	MPI_Request requests[4];
 	int cur_request = 0;

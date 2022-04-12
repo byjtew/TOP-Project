@@ -55,7 +55,6 @@ typedef struct lbm_comm_t_s {
 		MPI_Request *requests;
 		int max_requests;
 		int current_request;
-		lbm_mesh_cell_t buffer;
 
 		// Measurements for the communication
 #define NB_TIMERS 16
