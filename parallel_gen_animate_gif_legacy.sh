@@ -4,13 +4,14 @@
 if [ -n "$BASH_VERSION" ]; then
     :
 else
-    echo "This script must be run with bash"
+    echo "This script must be run with bash" 1>&2
+    echo "Try: bash $0 <args>" 1>&2
     exit 1
 fi
 
 #check args
 if [ -z "$1" ] || [ -z "$2" ]; then
-	echo "Usage : $0 {input.raw} {output.gif}" 1>&2
+	echo "Usage : bash $0 {input.raw} {output.gif}" 1>&2
 	exit 1
 fi
 
