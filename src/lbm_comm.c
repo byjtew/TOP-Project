@@ -165,8 +165,8 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	// endregion
 
 	int weights[2] = {1, 1};
-	weights[0] = mesh_comm->nb_per_neigh[0] > 0;
-	weights[1] = mesh_comm->nb_per_neigh[1] > 0;
+	/*weights[0] = mesh_comm->nb_per_neigh[0] > 0;
+	weights[1] = mesh_comm->nb_per_neigh[1] > 0;*/
 
 	MPI_Dist_graph_create_adjacent(MPI_COMM_WORLD, nb_neighs, sources, weights,
 	                               nb_neighs, sources, weights,
