@@ -220,6 +220,13 @@ int main(int argc, char *argv[]) {
 	setup_init_state(&mesh, &mesh_type, &mesh_comm);
 	setup_init_state(&temp, &mesh_type, &mesh_comm);
 
+
+	/*sleep(rank);
+	fprintf(stderr, "Rank: %d\n", rank);
+	fprintf(stderr, "Comm size: %d x %d\n", mesh_comm.width, mesh_comm.height);
+	fprintf(stderr, "Mesh size: %d x %d\n", mesh.width, mesh.height);
+	MPI_Barrier(MPI_COMM_WORLD);*/
+
 	//write initial condition in output file
 	if (lbm_gbl_config.output_filename != NULL)
 		save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);
