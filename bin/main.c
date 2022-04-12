@@ -10,6 +10,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <omp.h>
 #include "lbm_config.h"
 #include "lbm_struct.h"
 #include "lbm_phys.h"
@@ -48,9 +49,7 @@ void mpi_put(const char *format, ...) {
 #ifndef RELEASE_MODE
 	// Lock the mutex
 	MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win_mutex);
-#endif
 	printf(buffer, args);
-#ifndef RELEASE_MODE
 	// Unlock the mutex
 	MPI_Win_unlock(0, win_mutex);
 #endif
@@ -223,12 +222,11 @@ int main(int argc, char *argv[]) {
 
 	//write initial condition in output file
 	if (lbm_gbl_config.output_filename != NULL)
-		save_frame_all_domain(fp, &mesh, &temp_render);
+		save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);
 
-	//barrier to wait all before start
-	MPI_Barrier(MPI_COMM_WORLD);
+	omp_set_dynamic(1);
 
-	lbm_comm_ghost_exchange_init(&mesh_comm);
+	omp_set_num_threads(4);
 
 	//time steps
 	double total_time = 0;
@@ -276,15 +274,20 @@ int main(int argc, char *argv[]) {
 			total_time += MPI_Wtime() - iteration_timer;
 		}
 
-
 		//save step
 		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL) {
 			if (rank == RANK_MASTER) mpi_put("Saving step");
-			save_frame_all_domain(fp, &mesh, &temp_render);
+			save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);
+#ifdef RELEASE_MODE
+			float percent = (float) i / (float) ITERATIONS * 100.0F;
+			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i,
+			       ITERATIONS);
+			fflush(stdout);
+#endif
 		}
 	}
-
-	lbm_comm_ghost_exchange_release();
+	if (rank == RANK_MASTER)
+		printf("\n");
 
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (rank == RANK_MASTER && fp != NULL) {
@@ -292,7 +295,7 @@ int main(int argc, char *argv[]) {
 		close_file(fp);
 	}
 	if (rank == RANK_MASTER)
-		mpi_put("\n-- Total time : %.2lf s ~ %.2lf µs / iter\n\n", total_time, toMicroSeconds(total_time) / ITERATIONS);
+		printf("\n-- Total time : %.2lf s ~ %.2lf µs / iter\n\n", total_time, toMicroSeconds(total_time) / ITERATIONS);
 
 	//free memory
 	if (rank == RANK_MASTER)
