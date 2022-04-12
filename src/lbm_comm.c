@@ -232,10 +232,14 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 			double mean = 0.0;
 			for (int t = 0; t < mesh_comm->current_timer[o]; t++) mean += mesh_comm->timers[o][t];
 			mean /= mesh_comm->current_timer[o];
-			fprintf(fp, "0 %lf\n", mean);
 			printf("Mean of %d: %lf\n", o, mean);
+
+			double cumul = 0.0;
+			for (int t = 0; t < mesh_comm->current_timer[o]; t++) cumul += mesh_comm->timers[o][t];
+			printf("Cumul of %d: %lf\n", o, cumul);
+
 			for (int t = 0; t < mesh_comm->current_timer[o]; t++)
-				fprintf(fp, "%d %lf\n", t + 1, mesh_comm->timers[o][t]);
+				fprintf(fp, "%d %lf\n", t, mesh_comm->timers[o][t]);
 			fclose(fp);
 		}
 	}
@@ -300,14 +304,9 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	int cur_request = 0;
 #endif
 
-	lbm_comm_timers_start(mesh_comm, TIMER_SEND_BUFFER_CREATE);
-	// Row-major baby
-	lbm_comm_timers_stop(mesh_comm, TIMER_SEND_BUFFER_CREATE);
 
 #if MESH_SYNC_MODE == MESH_SYNC_UNIT
 #pragma message "Using async unitary send & recv mesh synchronization"
-
-	lbm_comm_timers_start(mesh_comm, TIMER_MESH_SYNC);
 	if (mesh_comm->top_id >= 0) {
 		MPI_Isend(Mesh_get_row(mesh, 1), mesh->width - 2, MPI_DOUBLE, mesh_comm->top_id, 0, MPI_COMM_WORLD,
 							&requests[cur_request++]);
@@ -331,11 +330,6 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	                       mesh_comm->comm_graph);
 #endif
 #endif
-	lbm_comm_timers_stop(mesh_comm, TIMER_MESH_SYNC);
-
-	lbm_comm_timers_start(mesh_comm, TIMER_RECV_BUFFER_EMPLACE);
-	// Row-major baby
-	lbm_comm_timers_stop(mesh_comm, TIMER_RECV_BUFFER_EMPLACE);
 
 
 #ifndef RELEASE_MODE
@@ -358,13 +352,15 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *
 	MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-	lbm_comm_timers_start(mesh_comm, TIMER_OUTPUT_GATHER);
 	/* If whe have more than one process */
 	if (1 < comm_size) {
+		lbm_comm_timers_start(mesh_comm, TIMER_OUTPUT_GATHER);
 		MPI_Gather(Mesh_get_cell(source_mesh, 0, 0), source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE,
 		           Mesh_get_cell(temp, 0, 0), source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE,
 		           RANK_MASTER,
 		           MPI_COMM_WORLD);
+		lbm_comm_timers_stop(mesh_comm, TIMER_OUTPUT_GATHER);
+
 		if (rank == RANK_MASTER) {
 			/* Rank 0 receives & render other processes meshes */
 			for (int i = 0; i < comm_size; i++) {
@@ -379,7 +375,6 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *
 		/* Only 0 renders its local mesh */
 		save_frame(fp, source_mesh);
 	}
-	lbm_comm_timers_stop(mesh_comm, TIMER_OUTPUT_GATHER);
 
 }
 

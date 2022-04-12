@@ -76,8 +76,8 @@ typedef struct lbm_file_header_s {
 /********************  STRUCT  **********************/
 /** Une entrée du fichier, avec les deux grandeurs macroscopiques. **/
 typedef struct lbm_file_entry_s {
-		float v;
-		float density;
+		double v;
+		double density;
 } lbm_file_entry_t;
 
 /********************  STRUCT  **********************/

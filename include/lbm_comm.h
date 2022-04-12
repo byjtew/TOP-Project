@@ -19,10 +19,12 @@
 /** Timers **/
 #define TIMER_MESH_SYNC 0
 #define TIMER_OUTPUT_GATHER 1
-#define TIMER_SEND_BUFFER_CREATE 2
-#define TIMER_RECV_BUFFER_EMPLACE 3
-
-#define NB_USED_TIMER 4
+// Free timer 2
+// Free timer 3
+#define TIMER_SPECIAL_CELLS 4
+#define TIMER_COLLISION 5
+#define TIMER_PROPAGATION 6
+#define NB_USED_TIMER 7
 
 /*********************  ENUM  ***********************/
 typedef enum lbm_comm_type_e {
@@ -56,7 +58,7 @@ typedef struct lbm_comm_t_s {
 		lbm_mesh_cell_t buffer;
 
 		// Measurements for the communication
-#define NB_TIMERS 64
+#define NB_TIMERS 16
 		double *timers[NB_TIMERS];
 		int current_timer[NB_TIMERS];
 

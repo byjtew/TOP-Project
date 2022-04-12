@@ -31,6 +31,7 @@ static int rank = -1;
 
 // Printf overload
 void mpi_put(const char *format, ...) {
+#ifndef RELEASE_MODE
 	int offset = 0;
 	char buffer[1024];
 	va_list args;
@@ -46,14 +47,14 @@ void mpi_put(const char *format, ...) {
 	offset += sprintf(buffer + offset, "\n");
 	// Remove color code
 	offset += sprintf(buffer + offset, "\033[0m");
-#ifndef RELEASE_MODE
+
 	// Lock the mutex
 	MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win_mutex);
 	printf(buffer, args);
 	// Unlock the mutex
 	MPI_Win_unlock(0, win_mutex);
-#endif
 	fflush(stdout);
+#endif
 }
 
 // Create a single mutex for all the processes, accessible by MPI_Win_lock
@@ -235,85 +236,58 @@ int main(int argc, char *argv[]) {
 
 	omp_set_num_threads(4);
 
-	//time steps
-	double total_time = 0;
-	double iteration_timer = 0;
-	double sub_timer = 0;
+	double total_time = MPI_Wtime();
 	for (i = 1; i <= ITERATIONS; i++) {
-		//print progress
-		if (rank == RANK_MASTER)
-			mpi_put("Progress [%5d / %5d]", i, ITERATIONS);
 
-		if (rank == RANK_MASTER)
-			iteration_timer = MPI_Wtime();
-
-
-		if (rank == RANK_MASTER)
-			sub_timer = MPI_Wtime();
-		//compute special actions (border, obstacle...)
+		lbm_comm_timers_start(&mesh_comm, TIMER_SPECIAL_CELLS);
 		special_cells(&mesh, &mesh_type, &mesh_comm);
-		if (rank == RANK_MASTER)
-			mpi_put("Special cells computed in %.2lf us", toMicroSeconds(MPI_Wtime() - sub_timer));
+		lbm_comm_timers_stop(&mesh_comm, TIMER_SPECIAL_CELLS);
 
-		if (rank == RANK_MASTER)
-			sub_timer = MPI_Wtime();
-		//compute collision term
+		lbm_comm_timers_start(&mesh_comm, TIMER_COLLISION);
 		collision(&temp, &mesh);
-		if (rank == RANK_MASTER)
-			mpi_put("Collision computed in     \t%.2lf us", toMicroSeconds(MPI_Wtime() - sub_timer));
+		lbm_comm_timers_stop(&mesh_comm, TIMER_COLLISION);
 
-		if (rank == RANK_MASTER)
-			sub_timer = MPI_Wtime();
-		//propagate values from node to neighbors
+		lbm_comm_timers_start(&mesh_comm, TIMER_MESH_SYNC);
 		lbm_comm_ghost_exchange(&mesh_comm, &temp, rank);
-		if (rank == RANK_MASTER)
-			mpi_put("Ghost exchange computed in\t%.2lf us", toMicroSeconds(MPI_Wtime() - sub_timer));
+		lbm_comm_timers_stop(&mesh_comm, TIMER_MESH_SYNC);
 
-		if (rank == RANK_MASTER)
-			sub_timer = MPI_Wtime();
+		lbm_comm_timers_start(&mesh_comm, TIMER_PROPAGATION);
 		propagation(&mesh, &temp);
-		if (rank == RANK_MASTER)
-			mpi_put("Propagation computed in   \t%.2lf us", toMicroSeconds(MPI_Wtime() - sub_timer));
-
-		if (rank == RANK_MASTER) {
-			double elapsed = MPI_Wtime() - iteration_timer;
-			mpi_put("-- Iteration %.5d took    \t%.2lf us", i, toMicroSeconds(elapsed));
-			total_time += MPI_Wtime() - iteration_timer;
-		}
+		lbm_comm_timers_stop(&mesh_comm, TIMER_PROPAGATION);
 
 		//save step
-		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL) {
-			if (rank == RANK_MASTER) mpi_put("Saving step");
+		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL)
 			save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);
+
 #ifdef RELEASE_MODE
-			float percent = (float) i / (float) ITERATIONS * 100.0F;
-			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i,
-			       ITERATIONS);
-			fflush(stdout);
+		float percent = (float) i / (float) ITERATIONS * 100.0F;
+		printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i,
+		       ITERATIONS);
+		fflush(stdout);
 #endif
-		}
-	}
-	if (rank == RANK_MASTER)
-		printf("\n");
 
-	MPI_Barrier(MPI_COMM_WORLD);
-	if (rank == RANK_MASTER && fp != NULL) {
-		mpi_put("Close output file");
+	}
+
+	if (rank == RANK_MASTER && fp != NULL)
 		close_file(fp);
-	}
-	if (rank == RANK_MASTER)
-		printf("\n-- Total time : %.2lf s ~ %.2lf µs / iter\n\n", total_time, toMicroSeconds(total_time) / ITERATIONS);
 
-	//free memory
-	if (rank == RANK_MASTER)
-		mpi_put("Freeing memory...");
+	if (rank == RANK_MASTER) {
+		total_time = MPI_Wtime() - total_time;
+		printf("\n-- Total time : %.2lf s ~ %.2lf µs / iter\n\n", total_time,
+		       toMicroSeconds(total_time)
+		       / ITERATIONS);
+	}
+
+//free memory
+
 	lbm_comm_release(&mesh_comm);
 	Mesh_release(&mesh);
 	Mesh_release(&temp);
-	if (rank == RANK_MASTER)Mesh_release(&temp_render);
+	if (rank == RANK_MASTER) Mesh_release(&temp_render);
 	lbm_mesh_type_t_release(&mesh_type);
 
-	//close MPI
+//close MPI
 	MPI_Finalize();
+
 	return EXIT_SUCCESS;
 }
