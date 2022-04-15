@@ -66,6 +66,9 @@ typedef struct lbm_comm_t_s {
 		int nb_per_neigh[2];
 		int send_displ[2];
 		int recv_displ[2];
+
+		// IO synchronization
+		pthread_mutex_t mutex_io;
 } lbm_comm_t;
 
 /*******************  FUNCTION  *********************/

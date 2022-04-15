@@ -3,13 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <stdbool.h>
 #include <math.h>
-#include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
 #include <pthread.h>
-#include <unistd.h>
 #include <omp.h>
 #include "lbm_config.h"
 #include "lbm_struct.h"
@@ -46,7 +43,7 @@ void mpi_put(const char *format, ...) {
 	va_end(args);
 	offset += sprintf(buffer + offset, "\n");
 	// Remove color code
-	offset += sprintf(buffer + offset, "\033[0m");
+	sprintf(buffer + offset, "\033[0m");
 
 	// Lock the mutex
 	MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win_mutex);

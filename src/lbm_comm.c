@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <omp.h>
+#include <pthread.h>
 #include "lbm_comm.h"
 
 // If OpenMP is not available, define OPENMP_AVAILABLE
@@ -155,7 +156,6 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	mesh_comm->send_displ[0] = mesh_comm->width * DIRECTIONS + DIRECTIONS;
 	// Pre-last row
 	mesh_comm->send_displ[1] = DIRECTIONS + mesh_comm->width * DIRECTIONS * (mesh_comm->height - 2);
-
 	// endregion
 
 	int weights[2] = {1, 1};
@@ -166,6 +166,9 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	                               nb_neighs, sources, weights,
 	                               MPI_INFO_NULL, 1, &mesh_comm->comm_graph);
 	if (rank == 0) printf("Graph created.\n");
+
+	// IO synchronization
+	pthread_mutex_init(&mesh_comm->mutex_io, NULL);
 
 	//if debug print comm
 #ifndef NDEBUG
@@ -324,14 +327,21 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *
 		lbm_comm_timers_stop(mesh_comm, TIMER_OUTPUT_GATHER);
 
 		if (rank == RANK_MASTER) {
-			/* Rank 0 receives & render other processes meshes */
-			for (int i = 0; i < comm_size; i++) {
-				Mesh tmp_mesh;
-				tmp_mesh.width = source_mesh->width;
-				tmp_mesh.height = source_mesh->height;
-				tmp_mesh.cells = temp->cells + i * source_mesh->width * source_mesh->height * DIRECTIONS;
-				save_frame(fp, &tmp_mesh);
+			pthread_mutex_lock(&(mesh_comm->mutex_io));
+#pragma omp parallel default(none) shared(comm_size, source_mesh, temp, fp) num_threads(1)
+			{
+#pragma omp master
+				{
+					for (int i = 0; i < comm_size; i++) {
+						Mesh tmp_mesh;
+						tmp_mesh.width = source_mesh->width;
+						tmp_mesh.height = source_mesh->height;
+						tmp_mesh.cells = temp->cells + i * source_mesh->width * source_mesh->height * DIRECTIONS;
+						save_frame(fp, &tmp_mesh);
+					}
+				}
 			}
+			pthread_mutex_unlock(&(mesh_comm->mutex_io));
 		}
 	} else {
 		/* Only 0 renders its local mesh */
