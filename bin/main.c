@@ -3,13 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <stdbool.h>
 #include <math.h>
-#include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
 #include <pthread.h>
-#include <unistd.h>
 #include <omp.h>
 #include "lbm_config.h"
 #include "lbm_struct.h"
@@ -46,7 +43,7 @@ void mpi_put(const char *format, ...) {
 	va_end(args);
 	offset += sprintf(buffer + offset, "\n");
 	// Remove color code
-	offset += sprintf(buffer + offset, "\033[0m");
+	sprintf(buffer + offset, "\033[0m");
 
 	// Lock the mutex
 	MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win_mutex);
@@ -221,13 +218,6 @@ int main(int argc, char *argv[]) {
 	setup_init_state(&mesh, &mesh_type, &mesh_comm);
 	setup_init_state(&temp, &mesh_type, &mesh_comm);
 
-
-	/*sleep(rank);
-	fprintf(stderr, "Rank: %d\n", rank);
-	fprintf(stderr, "Comm size: %d x %d\n", mesh_comm.width, mesh_comm.height);
-	fprintf(stderr, "Mesh size: %d x %d\n", mesh.width, mesh.height);
-	MPI_Barrier(MPI_COMM_WORLD);*/
-
 	//write initial condition in output file
 	if (lbm_gbl_config.output_filename != NULL)
 		save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);
@@ -255,6 +245,13 @@ int main(int argc, char *argv[]) {
 		propagation(&mesh, &temp);
 		lbm_comm_timers_stop(&mesh_comm, TIMER_PROPAGATION);
 
+#ifdef RELEASE_MODE
+		if (rank == RANK_MASTER) {
+			float percent = (float) i / (float) ITERATIONS * 100.0F;
+			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i, ITERATIONS);
+			fflush(stdout);
+		}
+#endif
 		//save step
 		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL)
 			save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);

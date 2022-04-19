@@ -7,21 +7,13 @@ set(PROJECT_DESCRIPTION "")
 
 ## Build type (Debug, Release, RelWithDebInfo, MinSizeRel)
 if (NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif ()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 ## C standards
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-
-## C flags
-if (${CMAKE_BUILD_TYPE} MATCHES Debug)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -fopenmp -Wall -Wextra -Wpedantic")
-else ()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -ffast-math -fopenmp -march=native -Wall -Wextra -Wpedantic")
-endif ()
-message(STATUS "C flags: ${CMAKE_C_FLAGS}")
 
 ## MPI support
 message(STATUS "Looking for mpicc...")
@@ -32,18 +24,32 @@ else ()
 endif ()
 
 ## OpenMP support
-find_package(OpenMP REQUIRED)
-if (OPENMP_FOUND)
-    message(STATUS "OpenMP found")
-else ()
-    message(STATUS "OpenMP not found")
-endif ()
 find_package(Threads REQUIRED)
 if (Threads_FOUND)
     message(STATUS "Threads found")
 else ()
-    message(STATUS "Threads not found")
+    message(FATAL_ERROR "Threads not found")
 endif ()
+find_package(OpenMP REQUIRED)
+if (OPENMP_FOUND)
+    message(STATUS "OpenMP found")
+else ()
+    message(MESSAGE "OpenMP not found")
+endif ()
+if (OPENMP_C_FOUND)
+    message(STATUS "OpenMP_C found")
+else ()
+    message(FATAL_ERROR "OpenMP_C not found")
+endif ()
+
+## C flags
+if (${CMAKE_BUILD_TYPE} MATCHES Debug)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS} -g -O0 -Wall -Wextra -Wpedantic")
+else ()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS} -O3 -ffast-math -march=native -Wall -Wextra -Wpedantic")
+endif ()
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+message(STATUS "C flags: ${CMAKE_C_FLAGS}")
 
 # Libraries
 message(STATUS "Looking for libraries...")
