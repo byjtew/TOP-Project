@@ -167,9 +167,6 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	                               MPI_INFO_NULL, 1, &mesh_comm->comm_graph);
 	if (rank == 0) printf("Graph created.\n");
 
-	// IO synchronization
-	pthread_mutex_init(&mesh_comm->mutex_io, NULL);
-
 	//if debug print comm
 #ifndef NDEBUG
 	lbm_comm_print(mesh_comm);
@@ -327,21 +324,13 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *
 		lbm_comm_timers_stop(mesh_comm, TIMER_OUTPUT_GATHER);
 
 		if (rank == RANK_MASTER) {
-			pthread_mutex_lock(&(mesh_comm->mutex_io));
-#pragma omp parallel default(none) shared(comm_size, source_mesh, temp, fp) num_threads(1)
-			{
-#pragma omp master
-				{
-					for (int i = 0; i < comm_size; i++) {
-						Mesh tmp_mesh;
-						tmp_mesh.width = source_mesh->width;
-						tmp_mesh.height = source_mesh->height;
-						tmp_mesh.cells = temp->cells + i * source_mesh->width * source_mesh->height * DIRECTIONS;
-						save_frame(fp, &tmp_mesh);
-					}
-				}
+			for (int i = 0; i < comm_size; i++) {
+				Mesh tmp_mesh;
+				tmp_mesh.width = source_mesh->width;
+				tmp_mesh.height = source_mesh->height;
+				tmp_mesh.cells = temp->cells + i * source_mesh->width * source_mesh->height * DIRECTIONS;
+				save_frame(fp, &tmp_mesh);
 			}
-			pthread_mutex_unlock(&(mesh_comm->mutex_io));
 		}
 	} else {
 		/* Only 0 renders its local mesh */
