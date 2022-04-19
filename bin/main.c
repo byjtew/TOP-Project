@@ -3,13 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <stdbool.h>
 #include <math.h>
-#include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
 #include <pthread.h>
-#include <unistd.h>
 #include <omp.h>
 #include "lbm_config.h"
 #include "lbm_struct.h"
@@ -46,7 +43,7 @@ void mpi_put(const char *format, ...) {
 	va_end(args);
 	offset += sprintf(buffer + offset, "\n");
 	// Remove color code
-	offset += sprintf(buffer + offset, "\033[0m");
+	sprintf(buffer + offset, "\033[0m");
 
 	// Lock the mutex
 	MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win_mutex);
@@ -186,7 +183,6 @@ int main(int argc, char *argv[]) {
 	lbm_mesh_type_t mesh_type;
 	lbm_comm_t mesh_comm;
 	int i, comm_size;
-	FILE *fp = NULL;
 	const char *config_filename = NULL;
 
 	// Init MPI and get current rank and communicator size.
@@ -215,22 +211,17 @@ int main(int argc, char *argv[]) {
 
 	//master open the output file
 	if (rank == RANK_MASTER)
-		fp = open_output_file(&mesh_comm);
+		mesh_comm.thread_io_params->fp = open_output_file(&mesh_comm);
 
 	//setup initial conditions on mesh
 	setup_init_state(&mesh, &mesh_type, &mesh_comm);
 	setup_init_state(&temp, &mesh_type, &mesh_comm);
 
-
-	/*sleep(rank);
-	fprintf(stderr, "Rank: %d\n", rank);
-	fprintf(stderr, "Comm size: %d x %d\n", mesh_comm.width, mesh_comm.height);
-	fprintf(stderr, "Mesh size: %d x %d\n", mesh.width, mesh.height);
-	MPI_Barrier(MPI_COMM_WORLD);*/
-
+	if (rank == 0)
+		printf("Mesh dimensions: %d x %d\n", lbm_comm_width(&mesh_comm), lbm_comm_height(&mesh_comm));
 	//write initial condition in output file
 	if (lbm_gbl_config.output_filename != NULL)
-		save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);
+		save_frame_all_domain(&mesh, &temp_render, &mesh_comm);
 
 	omp_set_dynamic(1);
 
@@ -257,19 +248,18 @@ int main(int argc, char *argv[]) {
 
 		//save step
 		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL)
-			save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);
+			save_frame_all_domain(&mesh, &temp_render, &mesh_comm);
 
 #ifdef RELEASE_MODE
 		float percent = (float) i / (float) ITERATIONS * 100.0F;
-		printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i,
-		       ITERATIONS);
+		printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i, ITERATIONS);
 		fflush(stdout);
 #endif
 
 	}
 
-	if (rank == RANK_MASTER && fp != NULL)
-		close_file(fp);
+	if (rank == RANK_MASTER && mesh_comm.thread_io_params->fp != NULL)
+		close_file(mesh_comm.thread_io_params->fp);
 
 	if (rank == RANK_MASTER) {
 		total_time = MPI_Wtime() - total_time;

@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <omp.h>
+#include <pthread.h>
 #include "lbm_comm.h"
 
 // If OpenMP is not available, define OPENMP_AVAILABLE
@@ -155,7 +156,6 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	mesh_comm->send_displ[0] = mesh_comm->width * DIRECTIONS + DIRECTIONS;
 	// Pre-last row
 	mesh_comm->send_displ[1] = DIRECTIONS + mesh_comm->width * DIRECTIONS * (mesh_comm->height - 2);
-
 	// endregion
 
 	int weights[2] = {1, 1};
@@ -166,6 +166,15 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	                               nb_neighs, sources, weights,
 	                               MPI_INFO_NULL, 1, &mesh_comm->comm_graph);
 	if (rank == 0) printf("Graph created.\n");
+
+	// IO synchronization
+	mesh_comm->thread_io_running = 0;
+	mesh_comm->thread_io_params = (thread_io_parameter_t *) malloc(sizeof(thread_io_parameter_t));
+	mesh_comm->thread_io_params->mesh = NULL;
+	mesh_comm->thread_io_params->fp = NULL;
+	mesh_comm->thread_io_params->comm_size = comm_size;
+	mesh_comm->thread_io_params->width = mesh_comm->width;
+	mesh_comm->thread_io_params->height = mesh_comm->height;
 
 	//if debug print comm
 #ifndef NDEBUG
@@ -189,6 +198,13 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+	// IO threading
+	if (rank == RANK_MASTER) {
+		assert(mesh_comm->thread_io_running == 0);
+		free(mesh_comm->thread_io_params);
+	}
+
 	if (rank == RANK_MASTER) {
 		printf("Output timers.\n");
 		// Open a file name timers.txt and write the timers
@@ -214,6 +230,7 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 		}
 	}
 
+	// Timers
 	for (int i = 0; i < NB_TIMERS; i++)
 		free(mesh_comm->timers[i]);
 }
@@ -300,12 +317,35 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 }
 
 /*******************  FUNCTION  *********************/
+
+void *save_frame_threaded(void *p) {
+	thread_io_parameter_t *param = (thread_io_parameter_t *) p;
+	assert(param != NULL);
+	assert(param->mesh != NULL);
+	assert(param->width > 0);
+	assert(param->height > 0);
+	assert(param->fp != NULL);
+	assert(param->comm_size > 0);
+
+	int comm_size = 0;
+	MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+
+	for (int i = 0; i < comm_size; i++) {
+		Mesh tmp_mesh;
+		tmp_mesh.width = param->width;
+		tmp_mesh.height = param->height;
+		tmp_mesh.cells = param->mesh->cells + i * param->width * param->height * DIRECTIONS;
+		save_frame(param->fp, &tmp_mesh);
+	}
+	return p;
+}
+
 /**
  * Rendu du mesh en effectuant une réduction a 0
  * @param mesh_comm MeshComm à utiliser
  * @param temp Mesh a utiliser pour stocker les segments
 **/
-void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *mesh_comm) {
+void save_frame_all_domain(Mesh *source_mesh, Mesh *temp, lbm_comm_t *mesh_comm) {
 	// Todo: Switch to a Gather
 	//vars
 	int comm_size, rank;
@@ -316,6 +356,13 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *
 
 	/* If whe have more than one process */
 	if (1 < comm_size) {
+		// Waiting for the previous thread to finish, avoiding the IO buffer to become corrupted
+		if (rank == RANK_MASTER && mesh_comm->thread_io_running) {
+			pthread_join(mesh_comm->thread_io, NULL);
+			mesh_comm->thread_io_running = 0;
+		}
+
+		// Gathering the meshes from all the processes
 		lbm_comm_timers_start(mesh_comm, TIMER_OUTPUT_GATHER);
 		MPI_Gather(Mesh_get_cell(source_mesh, 0, 0), source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE,
 		           Mesh_get_cell(temp, 0, 0), source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE,
@@ -323,19 +370,15 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *
 		           MPI_COMM_WORLD);
 		lbm_comm_timers_stop(mesh_comm, TIMER_OUTPUT_GATHER);
 
+		// If we are the master process, we can start the IO thread
 		if (rank == RANK_MASTER) {
-			/* Rank 0 receives & render other processes meshes */
-			for (int i = 0; i < comm_size; i++) {
-				Mesh tmp_mesh;
-				tmp_mesh.width = source_mesh->width;
-				tmp_mesh.height = source_mesh->height;
-				tmp_mesh.cells = temp->cells + i * source_mesh->width * source_mesh->height * DIRECTIONS;
-				save_frame(fp, &tmp_mesh);
-			}
+			mesh_comm->thread_io_params->mesh = temp;
+			mesh_comm->thread_io_running = 1;
+			pthread_create(&mesh_comm->thread_io, NULL, &save_frame_threaded, &mesh_comm->thread_io_params);
 		}
 	} else {
 		/* Only 0 renders its local mesh */
-		save_frame(fp, source_mesh);
+		save_frame(mesh_comm->thread_io_params->fp, source_mesh);
 	}
 
 }

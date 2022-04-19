@@ -34,6 +34,15 @@ typedef enum lbm_comm_type_e {
 
 /********************  STRUCT  **********************/
 /**
+ * Structure de données utilisées par un thread (pthread pour la section IO)
+ */
+typedef struct {
+		Mesh *mesh;
+		int width, height, comm_size;
+		FILE *fp;
+} thread_io_parameter_t;
+
+/**
  * Structure utilisée pour stoquer les informations relatives aux communications.
 **/
 typedef struct lbm_comm_t_s {
@@ -66,6 +75,11 @@ typedef struct lbm_comm_t_s {
 		int nb_per_neigh[2];
 		int send_displ[2];
 		int recv_displ[2];
+
+		// IO synchronization
+		pthread_t thread_io;
+		int thread_io_running;
+		thread_io_parameter_t *thread_io_params;
 } lbm_comm_t;
 
 /*******************  FUNCTION  *********************/
@@ -99,6 +113,6 @@ void lbm_comm_ghost_exchange_release();
 void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank);
 
 /*******************  FUNCTION  *********************/
-void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *mesh_comm);
+void save_frame_all_domain(Mesh *source_mesh, Mesh *temp, lbm_comm_t *mesh_comm);
 
 #endif
