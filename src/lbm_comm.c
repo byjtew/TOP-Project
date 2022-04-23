@@ -100,8 +100,8 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	}
 
 	//compute splitting
-	nb_y = lbm_helper_pgcd(comm_size, width);
-	nb_x = comm_size / nb_y;
+	nb_y = comm_size;
+	nb_x = 1;
 	//nb_x = lbm_helper_pgcd(comm_size,width);
 	//nb_y = comm_size / nb_x;
 
