@@ -108,7 +108,7 @@ void setup_init_state_border(Mesh *mesh, lbm_mesh_type_t *mesh_type, const lbm_c
 
 
 	//top
-	if (mesh_comm->top_id == -1)
+	if (mesh_comm->left_id == -1)
 		for (i = 0; i < mesh->width; i++)
 			for (k = 0; k < DIRECTIONS; k++) {
 				//compute equilibr.
@@ -118,7 +118,7 @@ void setup_init_state_border(Mesh *mesh, lbm_mesh_type_t *mesh_type, const lbm_c
 			}
 
 	//bottom
-	if (mesh_comm->bottom_id == -1)
+	if (mesh_comm->right_id == -1)
 		for (i = 0; i < mesh->width; i++)
 			for (k = 0; k < DIRECTIONS; k++) {
 				//compute equilibr.

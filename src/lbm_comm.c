@@ -56,9 +56,9 @@ void lbm_comm_timers_stop(lbm_comm_t *mesh_comm, int id) {
 void lbm_comm_print(lbm_comm_t *mesh_comm) {
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	printf(" RANK %d ( TOP %d BOTTOM %d) ( POSITION %d %d ) (WH %d %d ) \n", rank,
-	       mesh_comm->top_id,
-	       mesh_comm->bottom_id,
+	printf(" RANK %d ( LEFT %d RIGHT %d) ( POSITION %d %d ) (WH %d %d ) \n", rank,
+	       mesh_comm->left_id,
+	       mesh_comm->right_id,
 	       mesh_comm->x,
 	       mesh_comm->y,
 	       mesh_comm->width,
@@ -100,19 +100,19 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	}
 
 	//compute splitting
-	nb_y = comm_size;
-	nb_x = 1;
-	//nb_x = lbm_helper_pgcd(comm_size,width);
-	//nb_y = comm_size / nb_x;
+	nb_y = 1;
+	nb_x = comm_size;
 
 	//check
 	assert(nb_x * nb_y == comm_size);
+	assert(width % nb_x == 0); // If row-major
 	if (height % nb_y != 0 && rank == 0)
 		fatal("Can't get a 2D cut for current problem size and number of processes.");
 
 	//calc current rank position (ID)
 	rank_x = rank % nb_x;
 	rank_y = rank / nb_x;
+	printf("Rank %d is at %d %d\n", rank, rank_x, rank_y);
 
 	//setup nb
 	mesh_comm->nb_x = nb_x;
@@ -127,8 +127,8 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	mesh_comm->y = rank_y * height / nb_y;
 
 	// Compute neighbour nodes id
-	mesh_comm->top_id = helper_get_rank_id(nb_x, nb_y, rank_x, rank_y - 1);
-	mesh_comm->bottom_id = helper_get_rank_id(nb_x, nb_y, rank_x, rank_y + 1);
+	mesh_comm->left_id = helper_get_rank_id(nb_x, nb_y, rank_x - 1, rank_y);
+	mesh_comm->right_id = helper_get_rank_id(nb_x, nb_y, rank_x + 1, rank_y);
 
 	mesh_comm->max_requests = width * 4 + 2 * 4 + 4;
 	mesh_comm->requests = calloc(mesh_comm->max_requests, sizeof(MPI_Request));
@@ -142,20 +142,20 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	//region Graph buffers
 	int nb_neighs = 2;
 	int sources[2];
-	sources[0] = mesh_comm->top_id >= 0 ? mesh_comm->top_id : rank;
-	sources[1] = mesh_comm->bottom_id >= 0 ? mesh_comm->bottom_id : rank;
+	sources[0] = mesh_comm->left_id >= 0 ? mesh_comm->left_id : rank;
+	sources[1] = mesh_comm->right_id >= 0 ? mesh_comm->right_id : rank;
 
-	int row_size = (mesh_comm->width - 2);
-	mesh_comm->nb_per_neigh[0] = DIRECTIONS * row_size * (mesh_comm->top_id >= 0 ? 1 : 0);
-	mesh_comm->nb_per_neigh[1] = DIRECTIONS * row_size * (mesh_comm->bottom_id >= 0 ? 1 : 0);
+	int col_size = (mesh_comm->height - 2);
+	mesh_comm->nb_per_neigh[0] = DIRECTIONS * col_size * (mesh_comm->left_id >= 0 ? 1 : 0);
+	mesh_comm->nb_per_neigh[1] = DIRECTIONS * col_size * (mesh_comm->right_id >= 0 ? 1 : 0);
 	// Top-left corner offset for the first row
 	mesh_comm->recv_displ[0] = DIRECTIONS;
 	// Bottom-left corner offset for the last row
-	mesh_comm->recv_displ[1] = DIRECTIONS + mesh_comm->width * DIRECTIONS * (mesh_comm->height - 1);
+	mesh_comm->recv_displ[1] = DIRECTIONS + mesh_comm->height * DIRECTIONS * (mesh_comm->width - 1);
 	// Second row
-	mesh_comm->send_displ[0] = mesh_comm->width * DIRECTIONS + DIRECTIONS;
+	mesh_comm->send_displ[0] = mesh_comm->height * DIRECTIONS + DIRECTIONS;
 	// Pre-last row
-	mesh_comm->send_displ[1] = DIRECTIONS + mesh_comm->width * DIRECTIONS * (mesh_comm->height - 2);
+	mesh_comm->send_displ[1] = DIRECTIONS + mesh_comm->height * DIRECTIONS * (mesh_comm->width - 2);
 	// endregion
 
 	int weights[2] = {1, 1};
@@ -241,23 +241,6 @@ int lbm_comm_sync_ghosts_vertical(lbm_comm_t *mesh_comm, Mesh *mesh, lbm_comm_ty
 	return 0;
 }
 
-void checkMeshValid(Mesh *mesh) {
-	for (int i = 0; i < mesh->width; i++) {
-		for (int j = 0; j < mesh->height; j++) {
-			lbm_mesh_cell_t cell = Mesh_get_cell(mesh, i, j);
-			for (int k = 0; k < DIRECTIONS; k++) {
-				double cell_k = cell[k];
-				if (isnan(cell_k))
-					fatal("NaN detected in mesh");
-				else if (isinf(cell_k))
-					fatal("Inf detected in mesh");
-				else if (cell_k < 0 || cell_k > 8)
-					fatal("Invalid value in mesh");
-			}
-		}
-	}
-}
-
 
 /*******************  FUNCTION  *********************/
 void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
@@ -291,11 +274,6 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	                       Mesh_get_cell(mesh, 0, 0), mesh_comm->nb_per_neigh, mesh_comm->recv_displ, MPI_DOUBLE,
 	                       mesh_comm->comm_graph);
 #endif
-#endif
-
-
-#ifndef RELEASE_MODE
-	checkMeshValid(mesh);
 #endif
 }
 

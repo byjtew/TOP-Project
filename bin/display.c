@@ -6,9 +6,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include "lbm_struct.h"
 
 #define HEADER_SIZE 16
@@ -165,6 +163,7 @@ int get_frame_count(lbm_data_file_t *file) {
 		                     (file->header.mesh_width * file->header.mesh_height * sizeof(lbm_file_entry_t)));
 		int remainder =
 				(info.st_size) % (file->header.mesh_width * file->header.mesh_height * sizeof(lbm_file_entry_t));
+		if (remainder > divided) remainder = 0;
 		printf("remainder: %d\n", remainder);
 		printf("divided: %d\n", divided);
 		return divided - remainder / HEADER_SIZE;

@@ -47,8 +47,8 @@ typedef struct lbm_comm_t_s {
 		int nb_y;
 		/** Id du voisin de droite, -1 si aucun. **/
 		/** Id du voisin de gauche, -1 si aucun. **/
-		int top_id;
-		int bottom_id;
+		int left_id;
+		int right_id;
 		/** Requète asynchrone en cours
 		 * @size width*2*2(rows) + 2*4(corners) + 2*2(columns)
 		 * **/

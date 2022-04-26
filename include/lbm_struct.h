@@ -135,7 +135,9 @@ void fatal(const char *message);
  * Fonction à utiliser pour récupérer une cellule du maillage en fonction de ses coordonnées.
 **/
 static inline lbm_mesh_cell_t Mesh_get_cell(const Mesh *mesh, int x, int y) {
-	int idx = (y * mesh->width + x) * DIRECTIONS;
+	// Col major: int idx = (x * mesh->height + y) * DIRECTIONS;
+	int idx = (x * mesh->height + y) * DIRECTIONS;
+	// Row major: int idx = (y * mesh->width + x) * DIRECTIONS;
 	/*assert(mesh != NULL);
 	assert(mesh->cells != NULL);
 	assert(x >= 0);
@@ -150,8 +152,11 @@ static inline lbm_mesh_cell_t Mesh_get_cell(const Mesh *mesh, int x, int y) {
 /**
  * Fonction à utiliser pour récupérer une ligne (suivant y, x = 1) du maillage en fonction de ses coordonnées.
 **/
-static inline lbm_mesh_cell_t Mesh_get_row(const Mesh *mesh, int y) {
+/*static inline lbm_mesh_cell_t Mesh_get_row(const Mesh *mesh, int y) {
 	return Mesh_get_cell(mesh, 1, y);
+}*/
+static inline lbm_mesh_cell_t Mesh_get_col(const Mesh *mesh, int x) {
+	return Mesh_get_cell(mesh, x, 1);
 }
 
 /*******************  FUNCTION  *********************/

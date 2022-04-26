@@ -210,6 +210,8 @@ int main(int argc, char *argv[]) {
 	if (rank == RANK_MASTER) Mesh_init(&temp_render, comm_size * lbm_comm_width(&mesh_comm), lbm_comm_height(&mesh_comm));
 	lbm_mesh_type_t_init(&mesh_type, lbm_comm_width(&mesh_comm), lbm_comm_height(&mesh_comm));
 
+	lbm_comm_print(&mesh_comm);
+
 	//master open the output file
 	if (rank == RANK_MASTER)
 		fp = open_output_file(&mesh_comm);
@@ -245,23 +247,17 @@ int main(int argc, char *argv[]) {
 		propagation(&mesh, &temp);
 		lbm_comm_timers_stop(&mesh_comm, TIMER_PROPAGATION);
 
-#ifdef RELEASE_MODE
-		if (rank == RANK_MASTER) {
-			float percent = (float) i / (float) ITERATIONS * 100.0F;
-			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i, ITERATIONS);
-			fflush(stdout);
-		}
-#endif
-		//save step
-		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL)
-			save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);
 
+		//save step
+		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL) {
+			save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);
 #ifdef RELEASE_MODE
-		float percent = (float) i / (float) ITERATIONS * 100.0F;
-		printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i,
-		       ITERATIONS);
-		fflush(stdout);
+			float percent = (float) i / (float) ITERATIONS * 100.0F;
+			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i,
+			       ITERATIONS);
+			fflush(stdout);
 #endif
+		}
 
 	}
 
