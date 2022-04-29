@@ -210,11 +210,21 @@ int main(int argc, char *argv[]) {
 		propagation(&mesh, &temp);
 		lbm_comm_timers_stop(&mesh_comm, TIMER_PROPAGATION);
 
-		float percent = (float) i / (float) ITERATIONS * 100.0F;
-		printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i,
-		       ITERATIONS);
-		fflush(stdout);
+		if (rank == 0) {
+			total_time = MPI_Wtime() - total_time;
+			float eta = 0.0f;
+			// Compute estimated time remaining
+			if (i > 1) {
+				float time_per_iteration = (MPI_Wtime() - total_time) / i;
+				float estimated_time_remaining = (ITERATIONS - i) * time_per_iteration;
+				eta = estimated_time_remaining * 1e4f / i;
+			}
+			float percent = (float) i / (float) ITERATIONS * 100.0F;
 
+			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d -- Total %05.02f -- ETA %05.02f\033[0m", percent, i,
+			       ITERATIONS, toMicroSeconds(total_time), eta);
+			fflush(stdout);
+		}
 		//save step
 		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL)
 			save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);
