@@ -13,18 +13,22 @@
 /** Modes de communication. **/
 #define MESH_SYNC_GRAPH 0
 #define MESH_SYNC_UNIT 1
+#define MESH_SYNC_CART 2
 
 #define MESH_SYNC_MODE MESH_SYNC_GRAPH
 
 /** Timers **/
-#define TIMER_MESH_SYNC 0
-#define TIMER_OUTPUT_GATHER 1
-// Free timer 2
-// Free timer 3
-#define TIMER_SPECIAL_CELLS 4
-#define TIMER_COLLISION 5
-#define TIMER_PROPAGATION 6
-#define NB_USED_TIMER 7
+#define TIMER_MESH_SYNC_COMM 0
+#define TIMER_MESH_PRE_SYNC 1
+#define TIMER_MESH_POST_SYNC 2
+#define TIMER_IO_GATHER_COMM 3
+#define TIMER_IO_WRITE 4
+#define TIMER_SPECIAL_CELLS 5
+#define TIMER_COLLISION 6
+#define TIMER_PROPAGATION 7
+#define TIMER_GHOST_EXCHANGE_TOTAL 8
+
+#define NB_USED_TIMER 9
 
 /*********************  ENUM  ***********************/
 typedef enum lbm_comm_type_e {

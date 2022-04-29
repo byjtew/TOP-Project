@@ -20,46 +20,9 @@
 #pragma message "Debug mode"
 #endif
 
-static int win_mutex = -1;
 static int rank = -1;
 
 /*******************  FUNCTION  *********************/
-
-
-// Printf overload
-void mpi_put(const char *format, ...) {
-#ifndef RELEASE_MODE
-	int offset = 0;
-	char buffer[1024];
-	va_list args;
-	if (rank == 0) // orange
-		offset += sprintf(buffer + offset, "\033[0;33m");
-	else // white
-		offset += sprintf(buffer + offset, "\033[0;37m");
-
-	offset += sprintf(buffer + offset, "[P%d]: ", rank);
-	va_start(args, format);
-	offset += vsprintf(buffer + offset, format, args);
-	va_end(args);
-	offset += sprintf(buffer + offset, "\n");
-	// Remove color code
-	sprintf(buffer + offset, "\033[0m");
-
-	// Lock the mutex
-	MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win_mutex);
-	printf(buffer, args);
-	// Unlock the mutex
-	MPI_Win_unlock(0, win_mutex);
-	fflush(stdout);
-#endif
-}
-
-// Create a single mutex for all the processes, accessible by MPI_Win_lock
-void create_mutex(void) {
-	MPI_Win_create(&rank, sizeof(int), sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, &win_mutex);
-	MPI_Win_fence(0, win_mutex);
-	mpi_put("Creating mutex");
-}
 
 /**
  * Ecrit l'en-tête du fichier de sortie. Cet en-tête sert essentiellement à fournir les informations
@@ -75,17 +38,17 @@ void write_file_header(FILE *fp, lbm_comm_t *mesh_comm) {
 	header.lines = mesh_comm->nb_y;
 
 	// print header in stdout
-	mpi_put("Writing header to file");
-	mpi_put("\tMAGICK: %d", header.magick);
-	mpi_put("\tMESH_HEIGHT: %d", header.mesh_height);
-	mpi_put("\tMESH_WIDTH: %d", header.mesh_width);
-	mpi_put("\tLINES: %d", header.lines);
+	printf("Writing header to file");
+	printf("\tMAGICK: %d", header.magick);
+	printf("\tMESH_HEIGHT: %d", header.mesh_height);
+	printf("\tMESH_WIDTH: %d", header.mesh_width);
+	printf("\tLINES: %d", header.lines);
 
 	//write header
 	size_t written = fwrite(&header, sizeof(lbm_file_header_t), 1, fp);
 
 	if (written <= 0) {
-		mpi_put("Error writing file header, written %d bytes, expected %d", written, sizeof(lbm_file_header_t));
+		fprintf(stderr, "Error writing file header, written %zu bytes, expected %lu", written, sizeof(lbm_file_header_t));
 		exit(1);
 	}
 }
@@ -99,7 +62,7 @@ FILE *open_output_file(lbm_comm_t *mesh_comm) {
 	if (RESULT_FILENAME == NULL)
 		return NULL;
 	else
-		mpi_put("Opening output file: %s", RESULT_FILENAME);
+		printf("Opening output file: %s", RESULT_FILENAME);
 
 	//open result file
 	fp = fopen(RESULT_FILENAME, "w");
@@ -175,6 +138,7 @@ static inline double toMicroSeconds(double seconds) {
 
 /*******************  FUNCTION  *********************/
 int main(int argc, char *argv[]) {
+
 	//vars
 	Mesh mesh;
 	Mesh temp;
@@ -190,7 +154,6 @@ int main(int argc, char *argv[]) {
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-	create_mutex();
 
 	//get config filename
 	if (argc >= 2)
@@ -239,25 +202,23 @@ int main(int argc, char *argv[]) {
 		collision(&temp, &mesh);
 		lbm_comm_timers_stop(&mesh_comm, TIMER_COLLISION);
 
-		lbm_comm_timers_start(&mesh_comm, TIMER_MESH_SYNC);
+		lbm_comm_timers_start(&mesh_comm, TIMER_GHOST_EXCHANGE_TOTAL);
 		lbm_comm_ghost_exchange(&mesh_comm, &temp, rank);
-		lbm_comm_timers_stop(&mesh_comm, TIMER_MESH_SYNC);
+		lbm_comm_timers_stop(&mesh_comm, TIMER_GHOST_EXCHANGE_TOTAL);
 
 		lbm_comm_timers_start(&mesh_comm, TIMER_PROPAGATION);
 		propagation(&mesh, &temp);
 		lbm_comm_timers_stop(&mesh_comm, TIMER_PROPAGATION);
 
+		float percent = (float) i / (float) ITERATIONS * 100.0F;
+		printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i,
+		       ITERATIONS);
+		fflush(stdout);
 
 		//save step
-		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL) {
+		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL)
 			save_frame_all_domain(fp, &mesh, &temp_render, &mesh_comm);
-#ifdef RELEASE_MODE
-			float percent = (float) i / (float) ITERATIONS * 100.0F;
-			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i,
-			       ITERATIONS);
-			fflush(stdout);
-#endif
-		}
+
 
 	}
 

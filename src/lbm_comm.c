@@ -138,25 +138,25 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 		mesh_comm->timers[i] = calloc(ITERATIONS, sizeof(double));
 	}
 
+	// Send and recv configuration (depending ROW/COL-MAJOR)
+	int col_size = (mesh_comm->height - 2);
+	mesh_comm->nb_per_neigh[0] = DIRECTIONS * col_size * (mesh_comm->left_id >= 0 ? 1 : 0);
+	mesh_comm->nb_per_neigh[1] = DIRECTIONS * col_size * (mesh_comm->right_id >= 0 ? 1 : 0);
+	// Top-left corner offset for the first row/col
+	mesh_comm->recv_displ[0] = DIRECTIONS;
+	// Bottom-left corner offset for the last row/col
+	mesh_comm->recv_displ[1] = DIRECTIONS + mesh_comm->height * DIRECTIONS * (mesh_comm->width - 1);
+	// Second row/col
+	mesh_comm->send_displ[0] = mesh_comm->height * DIRECTIONS + DIRECTIONS;
+	// Pre-last row/col
+	mesh_comm->send_displ[1] = DIRECTIONS + mesh_comm->height * DIRECTIONS * (mesh_comm->width - 2);
 
-	//region Graph buffers
+#if MESH_SYNC_MODE == MESH_SYNC_GRAPH
+#pragma message "Using graph sync"
 	int nb_neighs = 2;
 	int sources[2];
 	sources[0] = mesh_comm->left_id >= 0 ? mesh_comm->left_id : rank;
 	sources[1] = mesh_comm->right_id >= 0 ? mesh_comm->right_id : rank;
-
-	int col_size = (mesh_comm->height - 2);
-	mesh_comm->nb_per_neigh[0] = DIRECTIONS * col_size * (mesh_comm->left_id >= 0 ? 1 : 0);
-	mesh_comm->nb_per_neigh[1] = DIRECTIONS * col_size * (mesh_comm->right_id >= 0 ? 1 : 0);
-	// Top-left corner offset for the first row
-	mesh_comm->recv_displ[0] = DIRECTIONS;
-	// Bottom-left corner offset for the last row
-	mesh_comm->recv_displ[1] = DIRECTIONS + mesh_comm->height * DIRECTIONS * (mesh_comm->width - 1);
-	// Second row
-	mesh_comm->send_displ[0] = mesh_comm->height * DIRECTIONS + DIRECTIONS;
-	// Pre-last row
-	mesh_comm->send_displ[1] = DIRECTIONS + mesh_comm->height * DIRECTIONS * (mesh_comm->width - 2);
-	// endregion
 
 	int weights[2] = {1, 1};
 	weights[0] = mesh_comm->nb_per_neigh[0] > 0;
@@ -166,6 +166,18 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	                               nb_neighs, sources, weights,
 	                               MPI_INFO_NULL, 1, &mesh_comm->comm_graph);
 	if (rank == 0) printf("Graph created.\n");
+#else
+#if MESH_SYNC_MODE == MESH_SYNC_CART
+#pragma message "Using cartesian sync"
+	// Cartesian buffers
+	int dims[1];
+	dims[0] = comm_size;
+	int periods[1] = {0};
+	int reorder = 0;
+	MPI_Cart_create(MPI_COMM_WORLD, 1, dims, periods, reorder, &mesh_comm->comm_graph);
+	if (rank == 0) printf("Cartesian graph created.\n");
+#endif
+#endif
 
 	//if debug print comm
 #ifndef NDEBUG
@@ -190,14 +202,16 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	if (rank == RANK_MASTER) {
+		char timers_names[NB_TIMERS][32] = {"sync_comm", "pre_sync", "post_sync", "io_gather_comm", "io_write",
+		                                    "spec_cells", "collision", "propagation", "ghost_exchange_total"};
 		printf("Output timers.\n");
 		// Open a file name timers.txt and write the timers
 		char filename[64];
 		int world_size;
 		MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 		for (int o = 0; o < NB_USED_TIMER; o++) {
-			sprintf(filename, "timers-%d-t%d-n%d-i%d-o%d.txt", o, OPENMP_AVAILABLE, world_size, ITERATIONS,
-			        WRITE_STEP_INTERVAL);
+			printf("============================\nTIMER: %s\n", timers_names[o]);
+			sprintf(filename, "timers-%.32s-n%d.txt", timers_names[o], world_size);
 			FILE *fp = fopen(filename, "w");
 			double mean = 0.0;
 			for (int t = 0; t < mesh_comm->current_timer[o]; t++) mean += mesh_comm->timers[o][t];
@@ -211,6 +225,7 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 			for (int t = 0; t < mesh_comm->current_timer[o]; t++)
 				fprintf(fp, "%d %lf\n", t, mesh_comm->timers[o][t]);
 			fclose(fp);
+			printf("============================\n");
 		}
 	}
 
@@ -252,27 +267,30 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 
 #if MESH_SYNC_MODE == MESH_SYNC_UNIT
 #pragma message "Using async unitary send & recv mesh synchronization"
-	if (mesh_comm->top_id >= 0) {
-		MPI_Isend(Mesh_get_row(mesh, 1), mesh->width - 2, MPI_DOUBLE, mesh_comm->top_id, 0, MPI_COMM_WORLD,
+	lbm_comm_timers_start(mesh_comm, TIMER_MESH_SYNC_COMM);
+	if (mesh_comm->left_id >= 0) {
+		MPI_Isend(Mesh_get_col(mesh, 1), mesh->height - 2, MPI_DOUBLE, mesh_comm->left_id, 0, MPI_COMM_WORLD,
 							&requests[cur_request++]);
-		MPI_Irecv(Mesh_get_row(mesh, 0), mesh->width - 2, MPI_DOUBLE, mesh_comm->top_id, 0, MPI_COMM_WORLD,
+		MPI_Irecv(Mesh_get_col(mesh, 0), mesh->height - 2, MPI_DOUBLE, mesh_comm->left_id, 0, MPI_COMM_WORLD,
 							&requests[cur_request++]);
 	}
-	if (mesh_comm->bottom_id >= 0) {
-		MPI_Isend(Mesh_get_row(mesh, mesh->height - 2), mesh->width - 2, MPI_DOUBLE, mesh_comm->bottom_id, 0,
+	if (mesh_comm->right_id >= 0) {
+		MPI_Isend(Mesh_get_col(mesh, mesh->width - 2), mesh->height - 2, MPI_DOUBLE, mesh_comm->right_id, 0,
 							MPI_COMM_WORLD,
 							&requests[cur_request++]);
-		MPI_Irecv(Mesh_get_row(mesh, mesh->height - 1), mesh->width - 2, MPI_DOUBLE, mesh_comm->bottom_id, 0,
+		MPI_Irecv(Mesh_get_col(mesh, mesh->width - 1), mesh->height - 2, MPI_DOUBLE, mesh_comm->right_id, 0,
 							MPI_COMM_WORLD,
 							&requests[cur_request++]);
 	}
 	MPI_Waitall(cur_request, requests, MPI_STATUSES_IGNORE);
+	lbm_comm_timers_stop(mesh_comm, TIMER_MESH_SYNC_COMM);
 #else
-#if MESH_SYNC_MODE == MESH_SYNC_GRAPH
-#pragma message "Using graph mesh synchronization"
+#if MESH_SYNC_MODE == MESH_SYNC_GRAPH || MESH_SYNC_MODE == MESH_SYNC_CART
+	lbm_comm_timers_start(mesh_comm, TIMER_MESH_SYNC_COMM);
 	MPI_Neighbor_alltoallv(Mesh_get_cell(mesh, 0, 0), mesh_comm->nb_per_neigh, mesh_comm->send_displ, MPI_DOUBLE,
 	                       Mesh_get_cell(mesh, 0, 0), mesh_comm->nb_per_neigh, mesh_comm->recv_displ, MPI_DOUBLE,
 	                       mesh_comm->comm_graph);
+	lbm_comm_timers_stop(mesh_comm, TIMER_MESH_SYNC_COMM);
 #endif
 #endif
 }
@@ -294,14 +312,15 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *
 
 	/* If whe have more than one process */
 	if (1 < comm_size) {
-		lbm_comm_timers_start(mesh_comm, TIMER_OUTPUT_GATHER);
+		lbm_comm_timers_start(mesh_comm, TIMER_IO_GATHER_COMM);
 		MPI_Gather(Mesh_get_cell(source_mesh, 0, 0), source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE,
 		           Mesh_get_cell(temp, 0, 0), source_mesh->width * source_mesh->height * DIRECTIONS, MPI_DOUBLE,
 		           RANK_MASTER,
 		           MPI_COMM_WORLD);
-		lbm_comm_timers_stop(mesh_comm, TIMER_OUTPUT_GATHER);
+		lbm_comm_timers_stop(mesh_comm, TIMER_IO_GATHER_COMM);
 
 		if (rank == RANK_MASTER) {
+			lbm_comm_timers_start(mesh_comm, TIMER_IO_WRITE);
 			for (int i = 0; i < comm_size; i++) {
 				Mesh tmp_mesh;
 				tmp_mesh.width = source_mesh->width;
@@ -309,6 +328,7 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *
 				tmp_mesh.cells = temp->cells + i * source_mesh->width * source_mesh->height * DIRECTIONS;
 				save_frame(fp, &tmp_mesh);
 			}
+			lbm_comm_timers_stop(mesh_comm, TIMER_IO_WRITE);
 		}
 	} else {
 		/* Only 0 renders its local mesh */
