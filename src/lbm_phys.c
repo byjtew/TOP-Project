@@ -297,18 +297,14 @@ void collision(Mesh *mesh_out, const Mesh *mesh_in) {
  * @param mesh_in Maillage d'entrée (ne doivent pas être les mêmes).
 **/
 void propagation(Mesh *mesh_out, const Mesh *mesh_in) {
-	//vars
-	int i, j, k;
-	int ii, jj;
-
 	//loop on all cells
-	for (i = 0; i < mesh_out->width; i++) {
-		for (j = 0; j < mesh_out->height; j++) {
+	for (int i = 0; i < mesh_out->width; i++) {
+		for (int j = 0; j < mesh_out->height; j++) {
 			//for all direction
-			for (k = 0; k < DIRECTIONS; k++) {
+			for (int k = 0; k < DIRECTIONS; k++) {
 				//compute destination point
-				ii = (i + direction_matrix[k][0]);
-				jj = (j + direction_matrix[k][1]);
+				int ii = (i + direction_matrix[k][0]);
+				int jj = (j + direction_matrix[k][1]);
 				//propagate to neighboor nodes
 				if ((ii >= 0 && ii < mesh_out->width) && (jj >= 0 && jj < mesh_out->height))
 					Mesh_get_cell(mesh_out, ii, jj)[k] = Mesh_get_cell(mesh_in, i, j)[k];

@@ -21,16 +21,16 @@ static const int opposite_of[DIRECTIONS] = {0, 3, 4, 1, 2, 7, 8, 5, 6};
  * Definitions des 9 vecteurs de base utilisé pour discrétiser les directions sur chaque mailles.
 **/
 #if DIMENSIONS == 2
-static const Vector direction_matrix[DIRECTIONS] = {
-		{+0.0, +0.0},
-		{+1.0, +0.0},
-		{+0.0, +1.0},
-		{-1.0, +0.0},
-		{+0.0, -1.0},
-		{+1.0, +1.0},
-		{-1.0, +1.0},
-		{-1.0, -1.0},
-		{+1.0, -1.0}
+static const IntVector direction_matrix[DIRECTIONS] = {
+		{+0, +0},
+		{+1, +0},
+		{+0, +1},
+		{-1, +0},
+		{+0, -1},
+		{+1, +1},
+		{-1, +1},
+		{-1, -1},
+		{+1, -1}
 };
 #else
 #error Need to defined adapted direction matrix.

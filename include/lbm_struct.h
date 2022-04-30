@@ -16,6 +16,7 @@
 typedef double *lbm_mesh_cell_t;
 /** Représentation d'un vecteur pour la manipulation des vitesses macroscopiques. **/
 typedef double Vector[DIMENSIONS];
+typedef int IntVector[DIMENSIONS];
 
 /********************  STRUCT  **********************/
 /**
