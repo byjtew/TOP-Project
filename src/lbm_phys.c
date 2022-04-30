@@ -278,17 +278,16 @@ void special_cells(Mesh *mesh, lbm_mesh_type_t *mesh_type, const lbm_comm_t *mes
  * @param mesh Maillage sur lequel appliquer le calcul.
 **/
 void collision(Mesh *mesh_out, const Mesh *mesh_in) {
-	//vars
-	int i, j;
-
-	//errors
-	assert(mesh_in->width == mesh_out->width);
-	assert(mesh_in->height == mesh_out->height);
-
 	//loop on all inner cells
-	for (i = 1; i < mesh_in->width - 1; i++)
-		for (j = 1; j < mesh_in->height - 1; j++)
-			compute_cell_collision(Mesh_get_cell(mesh_out, i, j), Mesh_get_cell(mesh_in, i, j));
+
+#pragma omp parallel default(none) shared(mesh_in, mesh_out)
+	{
+#pragma omp for
+		for (int i = 1; i < mesh_in->width - 1; i++)
+			for (int j = 1; j < mesh_in->height - 1; j++)
+				compute_cell_collision(Mesh_get_cell(mesh_out, i, j), Mesh_get_cell(mesh_in, i, j));
+	}
+
 }
 
 /*******************  FUNCTION  *********************/
