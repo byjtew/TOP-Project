@@ -298,6 +298,7 @@ void collision(Mesh *mesh_out, const Mesh *mesh_in) {
 **/
 void propagation(Mesh *mesh_out, const Mesh *mesh_in) {
 	//loop on all cells
+#pragma omp parallel for default(none) shared(mesh_in, mesh_out, direction_matrix)
 	for (int i = 0; i < mesh_out->width; i++) {
 		for (int j = 0; j < mesh_out->height; j++) {
 			//for all direction
