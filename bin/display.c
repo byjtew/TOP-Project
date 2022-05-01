@@ -166,7 +166,8 @@ int get_frame_count(lbm_data_file_t *file) {
 		if (remainder > divided) remainder = 0;
 		printf("remainder: %d\n", remainder);
 		printf("divided: %d\n", divided);
-		return divided - remainder / HEADER_SIZE;
+		int ret = (divided - remainder / HEADER_SIZE) - 1;
+		return ret < 0 ? 0 : ret;
 	} else
 		return 0;
 }
