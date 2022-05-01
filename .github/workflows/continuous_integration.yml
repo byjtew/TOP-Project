@@ -46,12 +46,11 @@ jobs:
         run: |
           mpirun -np 4 ./main small_config.txt
 
-      - name: Anaylse results
+      - name: Analyse results
         working-directory: ${{github.workspace}}/build/bin
         run: |
           mkdir GIF_TMP && \
           sh gen_animate_gif_legacy.sh ./resultat.raw ./simulation.gif && \
-          [[ $? -eq 0 ]] && echo "Success" || (echo "Failure" && exit 1)
           tar -czf simulation_images.tar.gz ./GIF_TMP
 
       - name: Upload visualisation images
