@@ -163,8 +163,8 @@ void lbm_comm_init(lbm_comm_t *mesh_comm, int rank, int comm_size, int width, in
 	weights[1] = mesh_comm->nb_per_neigh[1] > 0;
 
 	MPI_Dist_graph_create_adjacent(MPI_COMM_WORLD, nb_neighs, sources, weights,
-	                               nb_neighs, sources, weights,
-	                               MPI_INFO_NULL, 1, &mesh_comm->comm_graph);
+																 nb_neighs, sources, weights,
+																 MPI_INFO_NULL, 1, &mesh_comm->comm_graph);
 	if (rank == 0) printf("Graph created.\n");
 #else
 #if MESH_SYNC_MODE == MESH_SYNC_CART
@@ -241,7 +241,36 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	int cur_request = 0;
 #endif
 
-
+#if MESH_SYNC_MODE == MESH_SYNC_UNIT_SYNCHRONOUS
+	lbm_comm_timers_start(mesh_comm, TIMER_MESH_SYNC_COMM);
+	if (mesh_comm->left_id >= 0) {
+		if (rank % 2 == 0) {
+			MPI_Send(Mesh_get_col(mesh, 1), mesh->height - 2, MPI_DOUBLE, mesh_comm->left_id, 0, MPI_COMM_WORLD);
+			MPI_Recv(Mesh_get_col(mesh, 0), mesh->height - 2, MPI_DOUBLE, mesh_comm->left_id, 0, MPI_COMM_WORLD,
+							 MPI_STATUS_IGNORE);
+		} else {
+			MPI_Recv(Mesh_get_col(mesh, 0), mesh->height - 2, MPI_DOUBLE, mesh_comm->left_id, 0, MPI_COMM_WORLD,
+							 MPI_STATUS_IGNORE);
+			MPI_Send(Mesh_get_col(mesh, 1), mesh->height - 2, MPI_DOUBLE, mesh_comm->left_id, 0, MPI_COMM_WORLD);
+		}
+	}
+	if (mesh_comm->right_id >= 0) {
+		if (rank % 2 == 0) {
+			MPI_Send(Mesh_get_col(mesh, mesh->width - 2), mesh->height - 2, MPI_DOUBLE, mesh_comm->right_id, 0,
+							 MPI_COMM_WORLD);
+			MPI_Recv(Mesh_get_col(mesh, mesh->width - 1), mesh->height - 2, MPI_DOUBLE, mesh_comm->right_id, 0,
+							 MPI_COMM_WORLD,
+							 MPI_STATUS_IGNORE);
+		} else {
+			MPI_Recv(Mesh_get_col(mesh, mesh->width - 1), mesh->height - 2, MPI_DOUBLE, mesh_comm->right_id, 0,
+							 MPI_COMM_WORLD,
+							 MPI_STATUS_IGNORE);
+			MPI_Send(Mesh_get_col(mesh, mesh->width - 2), mesh->height - 2, MPI_DOUBLE, mesh_comm->right_id, 0,
+							 MPI_COMM_WORLD);
+		}
+	}
+	lbm_comm_timers_stop(mesh_comm, TIMER_MESH_SYNC_COMM);
+#else
 #if MESH_SYNC_MODE == MESH_SYNC_UNIT
 #pragma message "Using async unitary send & recv mesh synchronization"
 	lbm_comm_timers_start(mesh_comm, TIMER_MESH_SYNC_COMM);
@@ -268,6 +297,7 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	                       Mesh_get_cell(mesh, 0, 0), mesh_comm->nb_per_neigh, mesh_comm->recv_displ, MPI_DOUBLE,
 	                       mesh_comm->comm_graph);
 	lbm_comm_timers_stop(mesh_comm, TIMER_MESH_SYNC_COMM);
+#endif
 #endif
 #endif
 }
