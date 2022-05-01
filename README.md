@@ -8,6 +8,10 @@
 
 --- 
 
+## Optimization notes
+
+[Report here](./TOP_Project.pdf)
+
 ### Quickstart
 
 #### Build:
