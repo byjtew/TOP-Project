@@ -4,9 +4,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
-#include <stdarg.h>
 #include <string.h>
-#include <pthread.h>
 #include <omp.h>
 #include "lbm_config.h"
 #include "lbm_struct.h"
@@ -212,16 +210,16 @@ int main(int argc, char *argv[]) {
 
 		if (rank == 0) {
 			total_time = MPI_Wtime() - total_time;
-			float eta = 0.0f;
+			double eta = 0.0f;
 			// Compute estimated time remaining
 			if (i > 1) {
-				float time_per_iteration = (MPI_Wtime() - total_time) / i;
-				float estimated_time_remaining = (ITERATIONS - i) * time_per_iteration;
+				double time_per_iteration = (MPI_Wtime() - total_time) / i;
+				double estimated_time_remaining = (ITERATIONS - i) * time_per_iteration;
 				eta = estimated_time_remaining * 1e4f / i;
 			}
-			float percent = (float) i / (float) ITERATIONS * 100.0F;
+			double percent = (double) i / (double) ITERATIONS * 100.0F;
 
-			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d -- Total %05.02f -- ETA %05.02f\033[0m", percent, i,
+			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d -- Total %05.02lf -- ETA %05.02lf\033[0m", percent, i,
 			       ITERATIONS, toMicroSeconds(total_time), eta);
 			fflush(stdout);
 		}

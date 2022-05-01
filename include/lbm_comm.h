@@ -30,12 +30,6 @@
 
 #define NB_USED_TIMER 9
 
-/*********************  ENUM  ***********************/
-typedef enum lbm_comm_type_e {
-		COMM_SEND,
-		COMM_RECV
-} lbm_comm_type_t;
-
 /********************  STRUCT  **********************/
 /**
  * Structure utilisée pour stoquer les informations relatives aux communications.
@@ -96,12 +90,6 @@ void lbm_comm_timers_stop(lbm_comm_t *mesh_comm, int id);
 void lbm_comm_print(lbm_comm_t *mesh);
 
 /*******************  FUNCTION  *********************/
-void lbm_comm_sync_ghosts_wait(lbm_comm_t *mesh);
-
-void lbm_comm_ghost_exchange_init(lbm_comm_t *mesh_comm);
-
-void lbm_comm_ghost_exchange_release();
-
 void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank);
 
 /*******************  FUNCTION  *********************/

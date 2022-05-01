@@ -233,29 +233,6 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 		free(mesh_comm->timers[i]);
 }
 
-/*******************  FUNCTION  *********************/
-/**
- * Debut de communications asynchrones
- * @param mesh_comm MeshComm à utiliser
- * @param mesh Mesh a utiliser lors de l'échange des mailles fantomes
-**/
-int lbm_comm_sync_ghosts_vertical(lbm_comm_t *mesh_comm, Mesh *mesh, lbm_comm_type_t comm_type, int target_rank,
-                                  int y, double *buffer) {
-	if (target_rank == -1) return 0;
-
-	if (comm_type == COMM_SEND) {
-		for (int x = 1; x < mesh->width - 2; x++)
-			memcpy(buffer + (x - 1) * DIRECTIONS, Mesh_get_cell(mesh, x, y), sizeof(double) * DIRECTIONS);
-		MPI_Isend(buffer, DIRECTIONS * (mesh_comm->width - 2), MPI_DOUBLE, target_rank, 0, MPI_COMM_WORLD,
-		          &mesh_comm->requests[mesh_comm->current_request++]);
-	} else {
-		MPI_Irecv(buffer, DIRECTIONS * (mesh_comm->width - 2), MPI_DOUBLE, target_rank, 0, MPI_COMM_WORLD,
-		          &mesh_comm->requests[mesh_comm->current_request++]);
-		return 1;
-	}
-	return 0;
-}
-
 
 /*******************  FUNCTION  *********************/
 void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
