@@ -102,12 +102,13 @@ void save_frame(FILE *fp, const Mesh *mesh) {
 
 	//loop on all values
 	cnt = 0;
+	// Todo: parallelize, taking into account the memory limit for process 0
 	for (i = 1; i < mesh->width - 1; i++) {
 		for (j = 1; j < mesh->height - 1; j++) {
 			//compute macrospic values
 			density = get_cell_density(Mesh_get_cell(mesh, i, j));
 			get_cell_velocity(v, Mesh_get_cell(mesh, i, j), density);
-			norm = sqrt(get_vect_norme_2(v, v));
+			norm = sqrt(get_vect_norme_2_dvdv(v, v));
 
 			//fill buffer
 			buffer[cnt].density = density;

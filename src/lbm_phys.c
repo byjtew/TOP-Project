@@ -9,7 +9,19 @@
 /**
  * Renvoie le résultat du produit des deux vecteurs passés en paramêtre.
 **/
-double get_vect_norme_2(const Vector vect1, const Vector vect2) {
+double get_vect_norme_2_ivdv(const IntVector vect1, const Vector vect2) {
+	//vars
+	int k;
+	double res = 0.0;
+
+	//loop on dimensions
+	for (k = 0; k < DIMENSIONS; k++)
+		res += vect1[k] * vect2[k];
+
+	return res;
+}
+
+double get_vect_norme_2_dvdv(const Vector vect1, const Vector vect2) {
 	//vars
 	int k;
 	double res = 0.0;
@@ -26,7 +38,7 @@ double get_vect_norme_2(const Vector vect1, const Vector vect2) {
  * Calcule la densité macroscopiques de la cellule en sommant ses DIRECTIONS
  * densités microscopiques.
 **/
-double get_cell_density(const lbm_mesh_cell_t cell) {
+double get_cell_density(lbm_mesh_cell_t cell) {
 	//vars
 	int k;
 	double res = 0.0;
@@ -48,7 +60,7 @@ double get_cell_density(const lbm_mesh_cell_t cell) {
  * densités microscopiques.
  * @param cell_density Densité macroscopique de la cellules.
 **/
-void get_cell_velocity(Vector v, const lbm_mesh_cell_t cell, double cell_density) {
+void get_cell_velocity(Vector v, lbm_mesh_cell_t const cell, double cell_density) {
 	//vars
 	int k, d;
 
@@ -86,10 +98,10 @@ double compute_equilibrium_profile(Vector velocity, double density, int directio
 	double feq;
 
 	//velocity norme 2 (v * v)
-	v2 = get_vect_norme_2(velocity, velocity);
+	v2 = get_vect_norme_2_dvdv(velocity, velocity);
 
 	//calc e_i * v_i / c
-	p = get_vect_norme_2(direction_matrix[direction], velocity);
+	p = get_vect_norme_2_ivdv(direction_matrix[direction], velocity);
 	p2 = p * p;
 
 	//terms without density and direction weight
@@ -108,7 +120,7 @@ double compute_equilibrium_profile(Vector velocity, double density, int directio
 /**
  * Calcule le vecteur de collision entre les fluides de chacune des directions.
 **/
-void compute_cell_collision(lbm_mesh_cell_t cell_out, const lbm_mesh_cell_t cell_in) {
+void compute_cell_collision(lbm_mesh_cell_t cell_out, lbm_mesh_cell_t const cell_in) {
 	//vars
 	int k;
 	double density;
@@ -249,12 +261,11 @@ void compute_outflow_zou_he_const_density(lbm_mesh_cell_t cell) {
  * Applique les actions spéciales liées aux conditions de bords ou aux réflexions sur l'obstacle.
 **/
 void special_cells(Mesh *mesh, lbm_mesh_type_t *mesh_type, const lbm_comm_t *mesh_comm) {
-	//vars
-	int i, j;
 
-	//loop on all inner cells
-	for (i = 1; i < mesh->width - 1; i++) {
-		for (j = 1; j < mesh->height - 1; j++) {
+// nb: do not parallelize this function under 10 processes
+//#pragma omp parallel for default(none) shared(mesh, mesh_type, mesh_comm) schedule(runtime)
+	for (int i = 1; i < mesh->width - 1; i++) {
+		for (int j = 1; j < mesh->height - 1; j++) {
 			switch (*(lbm_cell_type_t_get_cell(mesh_type, i, j))) {
 				case CELL_FUILD:
 					break;

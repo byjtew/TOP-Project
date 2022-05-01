@@ -12,7 +12,7 @@
 
 /** Modes de communication. **/
 #define MESH_SYNC_GRAPH 0
-#define MESH_SYNC_UNIT 1
+#define MESH_SYNC_UNIT_ASYNCHRONOUS 1
 #define MESH_SYNC_CART 2
 #define MESH_SYNC_UNIT_SYNCHRONOUS 3
 

@@ -236,7 +236,7 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 
 /*******************  FUNCTION  *********************/
 void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
-#if MESH_SYNC_MODE == MESH_SYNC_UNIT
+#if MESH_SYNC_MODE == MESH_SYNC_UNIT_ASYNCHRONOUS
 	MPI_Request requests[4];
 	int cur_request = 0;
 #endif
@@ -271,7 +271,7 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	}
 	lbm_comm_timers_stop(mesh_comm, TIMER_MESH_SYNC_COMM);
 #else
-#if MESH_SYNC_MODE == MESH_SYNC_UNIT
+#if MESH_SYNC_MODE == MESH_SYNC_UNIT_ASYNCHRONOUS
 #pragma message "Using async unitary send & recv mesh synchronization"
 	lbm_comm_timers_start(mesh_comm, TIMER_MESH_SYNC_COMM);
 	if (mesh_comm->left_id >= 0) {
