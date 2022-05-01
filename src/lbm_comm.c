@@ -277,17 +277,17 @@ void lbm_comm_ghost_exchange(lbm_comm_t *mesh_comm, Mesh *mesh, int rank) {
 	lbm_comm_timers_start(mesh_comm, TIMER_MESH_SYNC_COMM);
 	if (mesh_comm->left_id >= 0) {
 		MPI_Isend(Mesh_get_col(mesh, 1), mesh->height - 2, MPI_DOUBLE, mesh_comm->left_id, 0, MPI_COMM_WORLD,
-							&requests[cur_request++]);
+		          &requests[cur_request++]);
 		MPI_Irecv(Mesh_get_col(mesh, 0), mesh->height - 2, MPI_DOUBLE, mesh_comm->left_id, 0, MPI_COMM_WORLD,
-							&requests[cur_request++]);
+		          &requests[cur_request++]);
 	}
 	if (mesh_comm->right_id >= 0) {
 		MPI_Isend(Mesh_get_col(mesh, mesh->width - 2), mesh->height - 2, MPI_DOUBLE, mesh_comm->right_id, 0,
-							MPI_COMM_WORLD,
-							&requests[cur_request++]);
+		          MPI_COMM_WORLD,
+		          &requests[cur_request++]);
 		MPI_Irecv(Mesh_get_col(mesh, mesh->width - 1), mesh->height - 2, MPI_DOUBLE, mesh_comm->right_id, 0,
-							MPI_COMM_WORLD,
-							&requests[cur_request++]);
+		          MPI_COMM_WORLD,
+		          &requests[cur_request++]);
 	}
 	MPI_Waitall(cur_request, requests, MPI_STATUSES_IGNORE);
 	lbm_comm_timers_stop(mesh_comm, TIMER_MESH_SYNC_COMM);
