@@ -327,7 +327,6 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *
 		           MPI_COMM_WORLD);
 		lbm_comm_timers_stop(mesh_comm, TIMER_IO_GATHER_COMM);
 
-		return;
 		if (rank == RANK_MASTER) {
 			lbm_comm_timers_start(mesh_comm, TIMER_IO_WRITE);
 			for (int i = 0; i < comm_size; i++) {
