@@ -1,7 +1,0 @@
-# TypeOfComm MeanComm Preprocess Postprocess
-Empty MPI pre-process post-process
-Weighted-COLMAJOR 0.000652 0.000493 0.000452
-NotWeighted-COLMAJOR 0.000676 0.000513 0.000422
-Weighted-ROWMAJOR 0.000084 0.0 0.0
-NotWeighted-ROWMAJOR 0.000097 0.0 0.0
-AsyncUnit-ROWMAJOR 0.000132 0.0 0.0

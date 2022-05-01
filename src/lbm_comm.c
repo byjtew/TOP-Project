@@ -199,6 +199,7 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 	if (mesh_comm->requests != NULL)
 		free(mesh_comm->requests);
 
+	/* // Timing
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	if (rank == RANK_MASTER) {
@@ -227,7 +228,7 @@ void lbm_comm_release(lbm_comm_t *mesh_comm) {
 			fclose(fp);
 			printf("============================\n");
 		}
-	}
+	}*/
 
 	for (int i = 0; i < NB_TIMERS; i++)
 		free(mesh_comm->timers[i]);
@@ -326,6 +327,7 @@ void save_frame_all_domain(FILE *fp, Mesh *source_mesh, Mesh *temp, lbm_comm_t *
 		           MPI_COMM_WORLD);
 		lbm_comm_timers_stop(mesh_comm, TIMER_IO_GATHER_COMM);
 
+		return;
 		if (rank == RANK_MASTER) {
 			lbm_comm_timers_start(mesh_comm, TIMER_IO_WRITE);
 			for (int i = 0; i < comm_size; i++) {

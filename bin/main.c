@@ -193,36 +193,18 @@ int main(int argc, char *argv[]) {
 	double total_time = MPI_Wtime();
 	for (i = 1; i <= ITERATIONS; i++) {
 
-		lbm_comm_timers_start(&mesh_comm, TIMER_SPECIAL_CELLS);
 		special_cells(&mesh, &mesh_type, &mesh_comm);
-		lbm_comm_timers_stop(&mesh_comm, TIMER_SPECIAL_CELLS);
 
-		lbm_comm_timers_start(&mesh_comm, TIMER_COLLISION);
 		collision(&temp, &mesh);
-		lbm_comm_timers_stop(&mesh_comm, TIMER_COLLISION);
 
-		lbm_comm_timers_start(&mesh_comm, TIMER_GHOST_EXCHANGE_TOTAL);
 		lbm_comm_ghost_exchange(&mesh_comm, &temp, rank);
-		lbm_comm_timers_stop(&mesh_comm, TIMER_GHOST_EXCHANGE_TOTAL);
 
-		lbm_comm_timers_start(&mesh_comm, TIMER_PROPAGATION);
 		propagation(&mesh, &temp);
-		lbm_comm_timers_stop(&mesh_comm, TIMER_PROPAGATION);
 
 		if (rank == 0) {
-			total_time = MPI_Wtime() - total_time;
-			double eta = 0.0f;
-			// Compute estimated time remaining
-			if (i > 1) {
-				double time_per_iteration = (MPI_Wtime() - total_time) / i;
-				double estimated_time_remaining = (ITERATIONS - i) * time_per_iteration;
-				eta = estimated_time_remaining * 1e4f / i;
-			}
 			double percent = (double) i / (double) ITERATIONS * 100.0F;
-
-			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d -- Total %05.02lf -- ETA %05.02lf\033[0m", percent, i,
-			       ITERATIONS, toMicroSeconds(total_time), eta);
-			fflush(stdout);
+			printf("\033[0;35m\r %f%% -- Iteration %.05d/%.05d\033[0m", percent, i,
+			       ITERATIONS);
 		}
 		//save step
 		if (i % WRITE_STEP_INTERVAL == 0 && lbm_gbl_config.output_filename != NULL)
